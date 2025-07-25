@@ -1,12 +1,30 @@
-# React + Vite
+### 📄 `README.md`
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern journal entry system built with React, Vite, and Tailwind CSS, featuring double-entry accounting functionality.
 
-Currently, two official plugins are available:
+### 📁 Project Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+# Step 1: Create Vite + React project
+npm create vite@latest my-project
+cd my-project
 
-## Expanding the ESLint configuration
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 📦 Install Dependencies
+
+# Step 2: Install Tailwind CSS and Heroicons
+npm install tailwindcss @tailwindcss/vite
+npm install @heroicons/react
+
+### ▶️ Run the App
+
+npm run dev
+
+---
+
+## 🧩 Packages Used
+
+* [React](https://reactjs.org/)
+* [Vite](https://vitejs.dev/)
+* [Tailwind CSS](https://tailwindcss.com/)
+* [@heroicons/react](https://github.com/tailwindlabs/heroicons)
+
