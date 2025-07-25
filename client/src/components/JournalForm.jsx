@@ -26,6 +26,7 @@ const JournalForm = ({ onSave, editData }) => {
 
   const [addingNewAccountIndex, setAddingNewAccountIndex] = useState(null);
   const [newAccountName, setNewAccountName] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Initialize form with edit data if provided
   useEffect(() => {
@@ -119,6 +120,12 @@ const JournalForm = ({ onSave, editData }) => {
       onSave(newEntry);
     }
 
+    setSuccessMessage(editData ? "Journal entry updated successfully!" : "Journal entry created successfully!");
+
+    setTimeout(() => {
+      setSuccessMessage("");
+    }, 3000);
+
     // Reset form only if not in edit mode
     if (!editData) {
       setJournalDate("");
@@ -137,6 +144,12 @@ const JournalForm = ({ onSave, editData }) => {
       <h2 className="text-center text-xl font-bold mb-4">
         {editData ? "Edit Journal Entry" : "Add Journal Entry"}
       </h2>
+
+      {successMessage && (
+        <div className="text-green-700 text-center font-semibold mb-4">
+          {successMessage}
+        </div>
+      )}
 
       {/* Journal Date */}
       <div className="flex justify-center mb-8">
@@ -313,6 +326,7 @@ const JournalForm = ({ onSave, editData }) => {
         </button>
         <button
           type="submit"
+          
           className="px-4 py-2 border border-green-300 text-green-700 bg-green-50 shadow-sm rounded-md hover:bg-green-100 transition"
         >
           {editData ? "Update Journal Entry →" : "Create Journal Entry →"}
