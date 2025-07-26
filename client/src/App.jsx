@@ -8,7 +8,7 @@ import './App.css';
 
 function App() {
   return (
-    <div className="bg-gray-50 text-gray-900 min-h-screen flex flex-col">
+    <div className="bg-gray-200 text-gray-900 min-h-screen flex flex-col">
       <NavBar />
       
       <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 flex-1">
