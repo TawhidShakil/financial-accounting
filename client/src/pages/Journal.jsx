@@ -55,10 +55,10 @@ export default function Journal() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {itemIndex === 0 ? entry.date : ""}
                     </td>
-                    <td className="px-6 py-4">{item.account}</td>
-                    <td className="px-6 py-4">{item.type}</td>
-                    <td className="px-6 py-4">{item.amount}</td>
-                    <td className="px-6 py-4 whitespace-nowrap space-x-2">
+                    <td className="px-6 py-3 text-left">{item.account}</td>
+                    <td className="px-6 py-3 text-left">{item.type}</td>
+                    <td className="px-6 py-3 text-left">{item.amount}</td>
+                    <td className="px-6 py-3 text-left whitespace-nowrap space-x-2">
                       {itemIndex === 0 && (
                         <>
                           <button
