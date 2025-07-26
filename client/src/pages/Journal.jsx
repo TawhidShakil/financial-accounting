@@ -36,10 +36,10 @@ export default function Journal() {
         editData={editingIndex !== null ? entries[editingIndex] : null}
       />
       <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Journal Records</h2>
+        <h2 className="text-xl font-bold mb-4">Journal Records</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-white">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account</th>
