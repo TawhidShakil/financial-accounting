@@ -5,8 +5,10 @@ export default function Ledger() {
 
   useEffect(() => {
     const saved = localStorage.getItem("journalEntries");
+    console.log("Raw saved:", saved);
     if (saved) {
       const parsed = JSON.parse(saved);
+      console.log("Parsed saved:", parsed);
 
       // Flatten the nested journal entry structure
       const flatEntries = parsed.flatMap(entry =>
@@ -17,7 +19,7 @@ export default function Ledger() {
           amount: item.amount
         }))
       );
-
+      console.log("Flat Entries:", flatEntries); 
       setEntries(flatEntries);
     }
   }, []);
@@ -52,11 +54,10 @@ export default function Ledger() {
                   <td className="px-4 py-2 text-left text-gray-900">{entry.date}</td>
                   <td className="px-4 py-2 text-left">
                     <span
-                      className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                        entry.type === "Debit"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
+                      className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${entry.type === "Debit"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                        }`}
                     >
                       {entry.type}
                     </span>
@@ -68,6 +69,6 @@ export default function Ledger() {
           </table>
         </div>
       ))}
-    </div>
-  );
+    </div>
+  );
 }
