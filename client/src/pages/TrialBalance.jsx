@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 export default function TrialBalance() {
   const [allEntries, setAllEntries] = useState([]);
   const [balances, setBalances] = useState([]);
-  const [filterDate, setFilterDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     const saved = localStorage.getItem("journalEntries");
@@ -24,9 +25,12 @@ export default function TrialBalance() {
   }, []);
 
   useEffect(() => {
-    const filtered = filterDate
-      ? allEntries.filter(entry => entry.date <= filterDate)
-      : allEntries;
+    const filtered = allEntries.filter(entry => {
+      if (!startDate && !endDate) return true;
+      if (startDate && !endDate) return entry.date >= startDate;
+      if (!startDate && endDate) return entry.date <= endDate;
+      return entry.date >= startDate && entry.date <= endDate;
+    });
 
     const accountMap = {};
 
@@ -48,7 +52,7 @@ export default function TrialBalance() {
     }));
 
     setBalances(result);
-  }, [allEntries, filterDate]);
+  }, [allEntries, startDate, endDate]);
 
   const totalDebit = balances.reduce((sum, acc) => sum + acc.debit, 0);
   const totalCredit = balances.reduce((sum, acc) => sum + acc.credit, 0);
@@ -57,15 +61,26 @@ export default function TrialBalance() {
     <div className="min-h-screen bg-gray-100 px-8 py-10">
       <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Trial Balance</h2>
 
-      {/* Filter by Date */}
-      <div className="flex justify-center mb-6">
-        <label className="text-gray-700 font-medium mr-2">Filter by Date:</label>
-        <input
-          type="date"
-          value={filterDate}
-          onChange={(e) => setFilterDate(e.target.value)}
-          className="border rounded px-3 py-1"
-        />
+      {/* Filter by Date Range */}
+      <div className="flex justify-center gap-4 mb-6">
+        <div>
+          <label className="block text-gray-700 font-medium mb-1">From:</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="border rounded px-3 py-1"
+          />
+        </div>
+        <div>
+          <label className="block text-gray-700 font-medium mb-1">To:</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="border rounded px-3 py-1"
+          />
+        </div>
       </div>
 
       {/* Table */}
@@ -82,7 +97,6 @@ export default function TrialBalance() {
             {balances.map((item, index) => (
               <tr key={index} className="hover:bg-gray-50">
                 <td className="w-1/3 px-4 py-2 text-gray-800">{item.account}</td>
-                
                 <td className="w-1/3 px-4 py-2 text-right text-red-700">
                   {item.credit ? item.credit.toFixed(2) : "-"}
                 </td>
