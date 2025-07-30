@@ -6,19 +6,39 @@ export default function Journal() {
   const [entries, setEntries] = useState([]);
   const [editingIndex, setEditingIndex] = useState(null);
 
-  useEffect(() => {
-    console.log("API CALL - Fetch journal entries");
-    // setEntries(dataFromAPI);
-  }, []);
+ useEffect(() => {
+  const saved = localStorage.getItem("journalEntries");
+  if (saved) {
+    setEntries(JSON.parse(saved));
+    console.log("Loaded from localStorage");
+  }
+}, []);
+
 
   const handleSave = (newEntry) => {
-    if (editingIndex !== null) {
-      console.log("API CALL - Update journal entry");
-    } else {
-      console.log("API CALL - Create journal entry");
-    }
-    setEditingIndex(null);
-  };
+  let updatedEntries;
+
+  if (editingIndex !== null) {
+    // Update existing entry
+    updatedEntries = [...entries];
+    updatedEntries[editingIndex] = newEntry;
+    console.log("API CALL - Update journal entry");
+  } else {
+    // Add new entry
+    updatedEntries = [...entries, newEntry];
+    console.log("API CALL - Create journal entry");
+  }
+
+  // Save to localStorage
+  localStorage.setItem("journalEntries", JSON.stringify(updatedEntries));
+
+  // Update state
+  setEntries(updatedEntries);
+
+  // Reset editing index
+  setEditingIndex(null);
+};
+
 
   const handleDelete = (index) => {
     console.log("API CALL - Delete journal entry");
