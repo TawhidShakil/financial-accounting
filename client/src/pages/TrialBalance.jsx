@@ -98,24 +98,43 @@ export default function TrialBalance() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {trialData.map((item, index) => (
-              <tr key={index}>
-                <td className="px-6 py-4 text-left text-gray-700 hover:text-gray-900">
-                  <Link to={`/ledger/${encodeURIComponent(item.account)}`}>
-                    {item.account}
-                  </Link>
-                </td>
+            {trialData.map((item, index) => {
+              const accountType = (() => {
+                if (item.account.toLowerCase().includes("cash") || item.account.toLowerCase().includes("receivable") || item.account.toLowerCase().includes("asset")) return "Asset";
+                if (item.account.toLowerCase().includes("expense")) return "Expense";
+                if (item.account.toLowerCase().includes("payable") || item.account.toLowerCase().includes("liability")) return "Liability";
+                if (item.account.toLowerCase().includes("revenue") || item.account.toLowerCase().includes("income")) return "Revenue";
+                if (item.account.toLowerCase().includes("capital")) return "Capital";
+                return "Unknown";
+              })();
 
-                <td className={`px-6 py-4 text-left ${item.debit < 0 ? "text-red-500" : "text-gray-700"}`}>
-                  {item.debit !== 0 ? item.debit.toFixed(2) : "-"}
-                </td>
-                <td className={`px-6 py-4 text-left ${item.credit < 0 ? "text-red-500" : "text-gray-700"}`}>
-                  {item.credit !== 0 ? item.credit.toFixed(2) : "-"}
-                </td>
+              const shouldBeDebit = accountType === "Asset" || accountType === "Expense";
+              const shouldBeCredit = accountType === "Liability" || accountType === "Revenue" || accountType === "Capital";
 
-              </tr>
-            ))}
+              const isViolation =
+                (shouldBeDebit && item.credit > 0) ||
+                (shouldBeCredit && item.debit > 0);
+
+              const rowTextColor = isViolation ? "text-red-500 font-semibold" : "text-gray-700";
+
+              return (
+                <tr key={index}>
+                  <td className="px-6 py-4 text-left hover:text-gray-900">
+                    <Link to={`/ledger/${encodeURIComponent(item.account)}`} className={rowTextColor}>
+                      {item.account}
+                    </Link>
+                  </td>
+                  <td className={`px-6 py-4 text-left ${rowTextColor}`}>
+                    {item.debit !== 0 ? item.debit.toFixed(2) : "-"}
+                  </td>
+                  <td className={`px-6 py-4 text-left ${rowTextColor}`}>
+                    {item.credit !== 0 ? item.credit.toFixed(2) : "-"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
+
           <tfoot className="bg-gray-100 font-semibold">
             <tr>
               <td className="px-6 py-3 text-left">Total:</td>
