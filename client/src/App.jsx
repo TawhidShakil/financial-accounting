@@ -10,7 +10,7 @@ function App() {
   return (
     <div className="bg-gray-200 text-gray-900 min-h-screen flex flex-col">
       <NavBar />
-      
+
       <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 flex-1">
         <Routes>
           <Route path="/" element={<Journal />} />
@@ -18,6 +18,7 @@ function App() {
           <Route path="/ledger" element={<Ledger />} />
           <Route path="/trial-balance" element={<TrialBalance />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/ledger/:accountName?" element={<Ledger />} />
         </Routes>
       </main>
 

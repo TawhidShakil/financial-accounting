@@ -6,16 +6,11 @@ export default function Journal() {
   const [entries, setEntries] = useState([]);
   const [editingIndex, setEditingIndex] = useState(null);
 
- useEffect(() => {
-  const saved = localStorage.getItem("journalEntries");
-  if (saved) {
-    setEntries(JSON.parse(saved));
-    console.log("Loaded from localStorage");
-  }
-}, []);
+
 
 
   const handleSave = (newEntry) => {
+
   let updatedEntries;
 
   if (editingIndex !== null) {
@@ -40,6 +35,8 @@ export default function Journal() {
 };
 
 
+
+
   const handleDelete = (index) => {
     console.log("API CALL - Delete journal entry");
   };
@@ -51,8 +48,8 @@ export default function Journal() {
   return (
     <div>
       {/* console.log('Journal component rendering'); */}
-      <JournalForm 
-        onSave={handleSave} 
+      <JournalForm
+        onSave={handleSave}
         editData={editingIndex !== null ? entries[editingIndex] : null}
       />
       <div className="mt-8">
@@ -72,7 +69,7 @@ export default function Journal() {
               {entries.flatMap((entry, entryIndex) =>
                 entry.entries.map((item, itemIndex) => (
                   <tr key={`${entryIndex}-${itemIndex}`}>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-3 text-left whitespace-nowrap">
                       {itemIndex === 0 ? entry.date : ""}
                     </td>
                     <td className="px-6 py-3 text-left">{item.account}</td>

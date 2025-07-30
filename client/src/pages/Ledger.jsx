@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 
 export default function Ledger() {
   const [entries, setEntries] = useState([]);
@@ -24,12 +25,17 @@ export default function Ledger() {
     }
   }, []);
 
+  const { accountName } = useParams();
+
   // Group entries by account
   const groupedByAccount = entries.reduce((acc, entry) => {
+    if (accountName && entry.account !== accountName) return acc; // Only show the selected account
     if (!acc[entry.account]) acc[entry.account] = [];
     acc[entry.account].push(entry);
     return acc;
   }, {});
+
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -38,10 +44,7 @@ export default function Ledger() {
 
 
 
-      {Object.entries(groupedByAccount).map(([account, records]) => (
-        <div key={account} className="mb-10 bg-white shadow-md rounded-lg overflow-hidden">
-          <div className="bg-gray-500 text-white px-4 py-2">
-            <h3 className="text-xl font-semibold">{account}</h3>
+
           </div>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-100">
