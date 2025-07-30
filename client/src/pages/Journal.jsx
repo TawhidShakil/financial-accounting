@@ -7,18 +7,38 @@ export default function Journal() {
   const [editingIndex, setEditingIndex] = useState(null);
 
   useEffect(() => {
-    console.log("API CALL - Fetch journal entries");
-    // setEntries(dataFromAPI);
+    const saved = localStorage.getItem("journalEntries");
+    if (saved) {
+      setEntries(JSON.parse(saved));
+      console.log("Loaded from localStorage");
+    }
   }, []);
 
+
   const handleSave = (newEntry) => {
+    let updatedEntries;
+
     if (editingIndex !== null) {
+      // Update existing entry
+      updatedEntries = [...entries];
+      updatedEntries[editingIndex] = newEntry;
       console.log("API CALL - Update journal entry");
     } else {
+      // Add new entry
+      updatedEntries = [...entries, newEntry];
       console.log("API CALL - Create journal entry");
     }
+
+    // Save to localStorage
+    localStorage.setItem("journalEntries", JSON.stringify(updatedEntries));
+
+    // Update state
+    setEntries(updatedEntries);
+
+    // Reset editing index
     setEditingIndex(null);
   };
+
 
   const handleDelete = (index) => {
     console.log("API CALL - Delete journal entry");
@@ -31,8 +51,8 @@ export default function Journal() {
   return (
     <div>
       {/* console.log('Journal component rendering'); */}
-      <JournalForm 
-        onSave={handleSave} 
+      <JournalForm
+        onSave={handleSave}
         editData={editingIndex !== null ? entries[editingIndex] : null}
       />
       <div className="mt-8">
@@ -52,7 +72,7 @@ export default function Journal() {
               {entries.flatMap((entry, entryIndex) =>
                 entry.entries.map((item, itemIndex) => (
                   <tr key={`${entryIndex}-${itemIndex}`}>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-3 text-left whitespace-nowrap">
                       {itemIndex === 0 ? entry.date : ""}
                     </td>
                     <td className="px-6 py-3 text-left">{item.account}</td>
