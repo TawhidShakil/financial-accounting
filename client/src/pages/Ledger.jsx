@@ -35,6 +35,9 @@ export default function Ledger() {
     <div className="min-h-screen bg-gray-100 p-8">
       <h2 className="text-3xl font-bold mb-8 text-center text-gray-800">Ledger</h2>
 
+
+
+
       {Object.entries(groupedByAccount).map(([account, records]) => (
         <div key={account} className="mb-10 bg-white shadow-md rounded-lg overflow-hidden">
           <div className="bg-gray-500 text-white px-4 py-2">
@@ -72,3 +75,4 @@ export default function Ledger() {
     </div>
   );
 }
+
