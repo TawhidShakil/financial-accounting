@@ -1,34 +1,47 @@
-import { Routes, Route } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import NavBar from './components/NavBar';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
 import Journal from './pages/Journal';
 import Ledger from './pages/Ledger';
-import TrialBalance from './pages/TrialBalance';
-import Reports from './pages/Reports';
-import Receive from './pages/Receive';
 import Payment from './pages/Payment';
-import NavBar from './components/NavBar';
-import './App.css';
+import Receive from './pages/Receive';
+import Reports from './pages/Reports';
+import TrialBalance from './pages/TrialBalance';
 
 function App() {
+  const location = useLocation();
+  const user = JSON.parse(localStorage.getItem("loggedInUser"));
+  const isLoggedIn = !!user;
+
+  const isLoginPage = location.pathname === "/login";
+
   return (
     <div className="bg-gray-200 text-gray-900 min-h-screen flex flex-col">
-      <NavBar />
 
-      <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 flex-1">
+      {isLoggedIn && !isLoginPage && <NavBar />}
+
+      <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 flex-1 mt-16">
         <Routes>
-          <Route path="/" element={<Journal />} />
-          <Route path="/journal" element={<Journal />} />
-          <Route path="/ledger" element={<Ledger />} />
-          <Route path="/ledger/:accountName?" element={<Ledger />} />
-          <Route path="/trial-balance" element={<TrialBalance />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/receive" element={<Receive />} />
-          <Route path="/payment" element={<Payment />} />
-        </Routes>
-      </main>
+          <Route path="/" element={<Navigate to={isLoggedIn ? "/journal" : "/login"} />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} /> {/* ✅ Move it here */}
 
-      <footer className="container mx-auto py-4 px-4 sm:px-6 lg:px-8 text-center text-gray-600 border-t">
-        <p>Accounting App © {new Date().getFullYear()}</p>
-      </footer>
+          {isLoggedIn ? (
+            <>
+              <Route path="/journal" element={<Journal />} />
+              <Route path="/ledger" element={<Ledger />} />
+              <Route path="/trial-balance" element={<TrialBalance />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/receive" element={<Receive />} />
+              <Route path="/payment" element={<Payment />} />
+            </>
+          ) : (
+            <Route path="*" element={<Navigate to="/login" />} />
+          )}
+        </Routes>
+
+      </main>
     </div>
   );
 }

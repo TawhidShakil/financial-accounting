@@ -1,98 +1,89 @@
-import { NavLink } from "react-router-dom";
 import {
-  PencilSquareIcon,
-  DocumentTextIcon,
+  ArrowDownTrayIcon,
+  ArrowRightOnRectangleIcon,
+  ArrowUpTrayIcon,
   CalculatorIcon,
   ChartBarIcon,
-  ArrowDownTrayIcon,
-  ArrowUpTrayIcon,
+  DocumentTextIcon,
+  PencilSquareIcon,
 } from "@heroicons/react/24/outline";
+import { useEffect, useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 
 export default function NavBar() {
+  const [show, setShow] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > lastScrollY) {
+        setShow(false);
+      } else {
+        setShow(true);
+      }
+      setLastScrollY(window.scrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("loggedInUser");
+    navigate("/login");
+  };
+
   return (
-    <nav className="bg-white shadow-md">
+    <nav
+      className={`bg-red-950 text-white shadow-md fixed w-full z-50 transition-transform duration-300 ${show ? "translate-y-0" : "-translate-y-full"
+        }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-center h-16">
-          <div className="flex items-center space-x-4 sm:space-x-8">
-            <NavLink
-              to="/receive"
-              className={({ isActive }) =>
-                `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${isActive
-                  ? "border-blue-500 text-gray-900"
-                  : "border-transparent text-gray-600 hover:text-gray-700 hover:border-gray-300"
-                }`
-              }
-            >
-              <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-              <span className="hidden sm:inline">Receive</span>
-            </NavLink>
-            <NavLink
-              to="/payment"
-              className={({ isActive }) =>
-                `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${isActive
-                  ? "border-blue-500 text-gray-900"
-                  : "border-transparent text-gray-600 hover:text-gray-700 hover:border-gray-300"
-                }`
-              }
-            >
-              <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
-              <span className="hidden sm:inline">Payment</span>
-            </NavLink>
-            <NavLink
-              to="/journal"
-              className={({ isActive }) =>
-                `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${isActive
-                  ? "border-blue-500 text-gray-900"
-                  : "border-transparent text-gray-600 hover:text-gray-700 hover:border-gray-300"
-                }`
-              }
-            >
-              <PencilSquareIcon className="h-5 w-5 mr-2" />
-              <span className="hidden sm:inline">Journal</span>
-            </NavLink>
+        <div className="flex items-center justify-between h-16 w-full">
+          {/* Left spacer */}
+          <div className="w-1/3" />
 
-            <NavLink
-              to="/ledger"
-              className={({ isActive }) =>
-                `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${isActive
-                  ? "border-blue-500 text-gray-900"
-                  : "border-transparent text-gray-600 hover:text-gray-700 hover:border-gray-300"
-                }`
-              }
-            >
-              <DocumentTextIcon className="h-5 w-5 mr-2" />
-              <span className="hidden sm:inline">Ledger</span>
-            </NavLink>
+          {/* Center NavLinks */}
+          <div className="w-1/3 flex justify-center space-x-4 sm:space-x-8">
+            <NavBarLink to="/receive" icon={<ArrowDownTrayIcon />} label="Receive" />
+            <NavBarLink to="/payment" icon={<ArrowUpTrayIcon />} label="Payment" />
+            <NavBarLink to="/journal" icon={<PencilSquareIcon />} label="Journal" />
+            <NavBarLink to="/ledger" icon={<DocumentTextIcon />} label="Ledger" />
+            <NavBarLink to="/trial-balance" icon={<CalculatorIcon />} label="Trial Balance" />
+            <NavBarLink to="/reports" icon={<ChartBarIcon />} label="Reports" />
+          </div>
 
-            <NavLink
-              to="/trial-balance"
-              className={({ isActive }) =>
-                `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${isActive
-                  ? "border-blue-500 text-gray-900"
-                  : "border-transparent text-gray-600 hover:text-gray-700 hover:border-gray-300"
-                }`
-              }
+          {/* Right Log out */}
+          <div className="w-1/3 flex justify-end">
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-1 text-white hover:text-red-400 border border-transparent hover:border-red-400 px-3 py-1 rounded transition duration-200"
+              title="Log out"
             >
-              <CalculatorIcon className="h-5 w-5 mr-2" />
-              <span className="hidden sm:inline">Trial Balance</span>
-            </NavLink>
-
-            <NavLink
-              to="/reports"
-              className={({ isActive }) =>
-                `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${isActive
-                  ? "border-blue-500 text-gray-900"
-                  : "border-transparent text-gray-600 hover:text-gray-700 hover:border-gray-300"
-                }`
-              }
-            >
-              <ChartBarIcon className="h-5 w-5 mr-2" />
-              <span className="hidden sm:inline">Reports</span>
-            </NavLink>
-
+              <ArrowRightOnRectangleIcon className="h-5 w-5" />
+              <span className="hidden sm:inline">Log out</span>
+            </button>
           </div>
         </div>
       </div>
     </nav>
+  );
+}
+
+function NavBarLink({ to, icon, label }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${isActive
+          ? "border-green-300 text-white"
+          : "border-transparent text-white hover:text-white hover:border-white"
+        }`
+      }
+    >
+      <span className="h-5 w-5 mr-2">{icon}</span>
+      <span className="hidden sm:inline">{label}</span>
+    </NavLink>
   );
 }
