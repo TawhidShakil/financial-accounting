@@ -1,47 +1,64 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import JournalForm from "../components/JournalForm";
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 export default function Journal() {
   const [entries, setEntries] = useState([]);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [loading, setLoading] = useState(true); // ✅ Add loading state
+  const navigate = useNavigate();
 
   useEffect(() => {
+    const userData = localStorage.getItem("loggedInUser");
+
+    if (!userData) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const user = JSON.parse(userData);
+      if (!user || !user.email) {
+        navigate("/login");
+        return;
+      }
+    } catch (err) {
+      console.error("Invalid user data in localStorage");
+      navigate("/login");
+      return;
+    }
+
     const saved = localStorage.getItem("journalEntries");
     if (saved) {
       setEntries(JSON.parse(saved));
       console.log("Loaded from localStorage");
     }
-  }, []);
 
+    setLoading(false); // ✅ Done loading
+  }, [navigate]);
+
+  if (loading) return null; // ✅ Prevent early rendering
 
   const handleSave = (newEntry) => {
     let updatedEntries;
 
     if (editingIndex !== null) {
-      // Update existing entry
       updatedEntries = [...entries];
       updatedEntries[editingIndex] = newEntry;
-      console.log("API CALL - Update journal entry");
     } else {
-      // Add new entry
       updatedEntries = [...entries, newEntry];
-      console.log("API CALL - Create journal entry");
     }
 
-    // Save to localStorage
     localStorage.setItem("journalEntries", JSON.stringify(updatedEntries));
-
-    // Update state
     setEntries(updatedEntries);
-
-    // Reset editing index
     setEditingIndex(null);
   };
 
-
   const handleDelete = (index) => {
-    console.log("API CALL - Delete journal entry");
+    const updatedEntries = entries.filter((_, i) => i !== index);
+    localStorage.setItem("journalEntries", JSON.stringify(updatedEntries));
+    setEntries(updatedEntries);
   };
 
   const handleEdit = (index) => {
@@ -50,7 +67,6 @@ export default function Journal() {
 
   return (
     <div>
-      {/* console.log('Journal component rendering'); */}
       <JournalForm
         onSave={handleSave}
         editData={editingIndex !== null ? entries[editingIndex] : null}
