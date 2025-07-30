@@ -3,6 +3,8 @@ import Journal from './pages/Journal';
 import Ledger from './pages/Ledger';
 import TrialBalance from './pages/TrialBalance';
 import Reports from './pages/Reports';
+import Receive from './pages/Receive';
+import Payment from './pages/Payment';
 import NavBar from './components/NavBar';
 import './App.css';
 
@@ -16,9 +18,11 @@ function App() {
           <Route path="/" element={<Journal />} />
           <Route path="/journal" element={<Journal />} />
           <Route path="/ledger" element={<Ledger />} />
+          <Route path="/ledger/:accountName?" element={<Ledger />} />
           <Route path="/trial-balance" element={<TrialBalance />} />
           <Route path="/reports" element={<Reports />} />
-          <Route path="/ledger/:accountName?" element={<Ledger />} />
+          <Route path="/receive" element={<Receive />} />
+          <Route path="/payment" element={<Payment />} />
         </Routes>
       </main>
 

@@ -6,35 +6,38 @@ export default function Journal() {
   const [entries, setEntries] = useState([]);
   const [editingIndex, setEditingIndex] = useState(null);
 
-
+  useEffect(() => {
+    const saved = localStorage.getItem("journalEntries");
+    if (saved) {
+      setEntries(JSON.parse(saved));
+      console.log("Loaded from localStorage");
+    }
+  }, []);
 
 
   const handleSave = (newEntry) => {
+    let updatedEntries;
 
-  let updatedEntries;
+    if (editingIndex !== null) {
+      // Update existing entry
+      updatedEntries = [...entries];
+      updatedEntries[editingIndex] = newEntry;
+      console.log("API CALL - Update journal entry");
+    } else {
+      // Add new entry
+      updatedEntries = [...entries, newEntry];
+      console.log("API CALL - Create journal entry");
+    }
 
-  if (editingIndex !== null) {
-    // Update existing entry
-    updatedEntries = [...entries];
-    updatedEntries[editingIndex] = newEntry;
-    console.log("API CALL - Update journal entry");
-  } else {
-    // Add new entry
-    updatedEntries = [...entries, newEntry];
-    console.log("API CALL - Create journal entry");
-  }
+    // Save to localStorage
+    localStorage.setItem("journalEntries", JSON.stringify(updatedEntries));
 
-  // Save to localStorage
-  localStorage.setItem("journalEntries", JSON.stringify(updatedEntries));
+    // Update state
+    setEntries(updatedEntries);
 
-  // Update state
-  setEntries(updatedEntries);
-
-  // Reset editing index
-  setEditingIndex(null);
-};
-
-
+    // Reset editing index
+    setEditingIndex(null);
+  };
 
 
   const handleDelete = (index) => {
@@ -69,7 +72,7 @@ export default function Journal() {
               {entries.flatMap((entry, entryIndex) =>
                 entry.entries.map((item, itemIndex) => (
                   <tr key={`${entryIndex}-${itemIndex}`}>
-                    <td className="px-6 py-3 text-left whitespace-nowrap">
+                    <td className="px-6 py-4 text-left whitespace-nowrap">
                       {itemIndex === 0 ? entry.date : ""}
                     </td>
                     <td className="px-6 py-3 text-left">{item.account}</td>
