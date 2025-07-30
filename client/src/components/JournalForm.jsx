@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, accountHierarchy, setAccountHierarchy }) => {
   const [journalDate, setJournalDate] = useState("");
@@ -31,6 +31,22 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
     const [isAddingNewAccount, setIsAddingNewAccount] = useState(false);
     const [newAccountCategory, setNewAccountCategory] = useState(null);
     const [newAccountSubcategory, setNewAccountSubcategory] = useState(null);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowHierarchy(false);
+        setCurrentCategory(null);
+        setCurrentSubcategory(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
     const handleAccountSelect = (account) => {
       onChange(account);
@@ -273,7 +289,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
     };
 
     return (
-      <div className="relative">
+      <div className="relative" ref={dropdownRef}>
         <div
           onClick={() => setShowHierarchy(!showHierarchy)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer"
