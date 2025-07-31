@@ -4,16 +4,26 @@ import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 const defaultHierarchy = {
   Assets: {
-    "Current Assets": ["Cash", "Bank Accounts", "Accounts Receivable", "Inventory"],
-    "Fixed Assets": ["Land", "Buildings", "Equipment", "Vehicles"]
+    "Current Assets": [
+      "Cash",
+      "Bank Accounts",
+      "Accounts Receivable",
+      "Inventory",
+    ],
+    "Fixed Assets": ["Land", "Buildings", "Equipment", "Vehicles"],
   },
   Expenses: ["Rent Expense", "Salaries Expense", "Utilities Expense"],
   Revenues: ["Sales Revenue", "Service Revenue"],
   Liabilities: {
-    "Short-term Liabilities": ["Accounts Payable", "Short-term Loans", "Interest Payable", "Salary Payable"],
-    "Long-term Liabilities": ["Mortgages", "Bonds Payable"]
+    "Short-term Liabilities": [
+      "Accounts Payable",
+      "Short-term Loans",
+      "Interest Payable",
+      "Salary Payable",
+    ],
+    "Long-term Liabilities": ["Mortgages", "Bonds Payable"],
   },
-  Capital: ["Owner's Equity", "Retained Earnings"]
+  Capital: ["Owner's Equity", "Retained Earnings"],
 };
 
 export default function Journal() {
@@ -21,18 +31,18 @@ export default function Journal() {
     const savedEntries = localStorage.getItem("journalEntries");
     return savedEntries ? JSON.parse(savedEntries) : [];
   });
-  
+
   const [editingIndex, setEditingIndex] = useState(null);
-  
+
   const [accountHierarchy, setAccountHierarchy] = useState(() => {
     const savedHierarchy = localStorage.getItem("accountHierarchy");
     return savedHierarchy ? JSON.parse(savedHierarchy) : defaultHierarchy;
   });
-  
+
   const [accountOptions, setAccountOptions] = useState(() => {
     const savedAccounts = localStorage.getItem("accountOptions");
     if (savedAccounts) return JSON.parse(savedAccounts);
-    
+
     // Initialize from hierarchy if no saved accounts
     const flattenAccounts = (hierarchy) => {
       let accounts = [];
@@ -45,7 +55,7 @@ export default function Journal() {
       }
       return accounts;
     };
-    
+
     const initialAccounts = flattenAccounts(defaultHierarchy);
     localStorage.setItem("accountOptions", JSON.stringify(initialAccounts));
     return initialAccounts;
@@ -84,9 +94,11 @@ export default function Journal() {
 
   const handleSave = (newEntry) => {
     if (editingIndex !== null) {
-      setEntries(entries.map((entry, index) => 
-        index === editingIndex ? newEntry : entry
-      ));
+      setEntries(
+        entries.map((entry, index) =>
+          index === editingIndex ? newEntry : entry
+        )
+      );
     } else {
       setEntries([...entries, newEntry]);
     }
@@ -123,11 +135,24 @@ export default function Journal() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-white">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Account
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Description
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -140,6 +165,9 @@ export default function Journal() {
                       <td className="px-6 py-4">{item.account}</td>
                       <td className="px-6 py-4">{item.type}</td>
                       <td className="px-6 py-4">{item.amount.toFixed(2)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {itemIndex === 0 ? entry.description || "-" : ""}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap space-x-2">
                         {itemIndex === 0 && (
                           <>

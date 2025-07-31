@@ -1,20 +1,30 @@
 import React, { useState, useEffect, useRef } from "react";
 
-const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, accountHierarchy, setAccountHierarchy }) => {
+const JournalForm = ({
+  onSave,
+  editData,
+  accountOptions,
+  setAccountOptions,
+  accountHierarchy,
+  setAccountHierarchy,
+}) => {
   const [journalDate, setJournalDate] = useState("");
   const [entries, setEntries] = useState([
     { account: "", type: "Debit", amount: "" },
     { account: "", type: "Credit", amount: "" },
   ]);
   const [successMessage, setSuccessMessage] = useState("");
+  const [description, setDescription] = useState("");
 
   // Initialize form with edit data if provided
   useEffect(() => {
     if (editData) {
       setJournalDate(editData.date);
+      setDescription(editData.description || "");
       setEntries(editData.entries);
     } else {
       setJournalDate("");
+      setDescription("");
       setEntries([
         { account: "", type: "Debit", amount: "" },
         { account: "", type: "Credit", amount: "" },
@@ -34,19 +44,22 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
     const dropdownRef = useRef(null);
 
     useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowHierarchy(false);
-        setCurrentCategory(null);
-        setCurrentSubcategory(null);
-      }
-    };
+      const handleClickOutside = (event) => {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target)
+        ) {
+          setShowHierarchy(false);
+          setCurrentCategory(null);
+          setCurrentSubcategory(null);
+        }
+      };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, []);
 
     const handleAccountSelect = (account) => {
       onChange(account);
@@ -65,25 +78,28 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
 
     const deleteAccount = (account, category, subcategory = null) => {
       const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy));
-      
+
       if (subcategory) {
-        updatedHierarchy[category][subcategory] = updatedHierarchy[category][subcategory]
-          .filter(acc => acc !== account);
+        updatedHierarchy[category][subcategory] = updatedHierarchy[category][
+          subcategory
+        ].filter((acc) => acc !== account);
       } else if (Array.isArray(updatedHierarchy[category])) {
-        updatedHierarchy[category] = updatedHierarchy[category]
-          .filter(acc => acc !== account);
+        updatedHierarchy[category] = updatedHierarchy[category].filter(
+          (acc) => acc !== account
+        );
       } else {
         if (updatedHierarchy[category]?.["Other"]) {
-          updatedHierarchy[category]["Other"] = updatedHierarchy[category]["Other"]
-            .filter(acc => acc !== account);
+          updatedHierarchy[category]["Other"] = updatedHierarchy[category][
+            "Other"
+          ].filter((acc) => acc !== account);
         }
       }
 
       setAccountHierarchy(updatedHierarchy);
-      
-      const updatedAccounts = accountOptions.filter(acc => acc !== account);
+
+      const updatedAccounts = accountOptions.filter((acc) => acc !== account);
       setAccountOptions(updatedAccounts);
-      
+
       // Clear the selection if the deleted account was selected
       if (value === account) {
         onChange("");
@@ -107,7 +123,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
     const saveNewAccount = () => {
       try {
         const trimmedName = newAccountName.trim();
-        
+
         if (!trimmedName) {
           alert("Please enter an account name");
           return;
@@ -122,18 +138,20 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
 
         // Create a deep copy of the hierarchy
         const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy));
-        
+
         // Add to the hierarchy
         if (newAccountSubcategory) {
           if (!updatedHierarchy[newAccountCategory]?.[newAccountSubcategory]) {
             updatedHierarchy[newAccountCategory][newAccountSubcategory] = [];
           }
-          updatedHierarchy[newAccountCategory][newAccountSubcategory].push(trimmedName);
+          updatedHierarchy[newAccountCategory][newAccountSubcategory].push(
+            trimmedName
+          );
         } else if (Array.isArray(updatedHierarchy[newAccountCategory])) {
           updatedHierarchy[newAccountCategory].push(trimmedName);
         } else {
           if (!updatedHierarchy[newAccountCategory]) {
-            updatedHierarchy[newAccountCategory] = { "Other": [] };
+            updatedHierarchy[newAccountCategory] = { Other: [] };
           } else if (!updatedHierarchy[newAccountCategory]["Other"]) {
             updatedHierarchy[newAccountCategory]["Other"] = [];
           }
@@ -142,10 +160,10 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
 
         // Update states
         setAccountHierarchy(updatedHierarchy);
-        
+
         const updatedAccounts = [...new Set([...accountOptions, trimmedName])];
         setAccountOptions(updatedAccounts);
-        
+
         // Select the new account and reset state
         onChange(trimmedName);
         setIsAddingNewAccount(false);
@@ -191,7 +209,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
                 key={account}
                 className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
               >
-                <span 
+                <span
                   onClick={() => handleAccountSelect(account)}
                   className="flex-grow"
                 >
@@ -255,7 +273,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
               key={account}
               className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
             >
-              <span 
+              <span
                 onClick={() => handleAccountSelect(account)}
                 className="flex-grow"
               >
@@ -298,7 +316,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
         </div>
 
         {showHierarchy && !isAddingNewAccount && (
-          <div 
+          <div
             className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
@@ -405,6 +423,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
 
     const newEntry = {
       date: journalDate,
+      description: description,
       entries: entries.map((entry) => ({
         ...entry,
         amount: parseFloat(entry.amount),
@@ -530,6 +549,19 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
       >
         <span className="mr-1">+</span>Add Account
       </button>
+
+      <div className="mb-6">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Description (Optional)
+      </label>
+      <input
+        type="text"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+        placeholder="Enter a description for this journal entry"
+      />
+    </div>
 
       <div className="flex justify-end gap-3">
         <button
