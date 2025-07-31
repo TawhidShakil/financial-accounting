@@ -1,55 +1,48 @@
-"use client"
-
 import { useState, useEffect } from "react"
-import PaymentForm from "../components/PaymentForm"
+import ReceiptForm from "../components/ReceiptForm"
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline"
 
-const defaultPaymentHierarchy = {
+const defaultReceiptHierarchy = {
   Cash: [],
   Bank: ["Trust Bank", "NRBC Bank"],
 }
 
-const defaultDebitAccountOptions = [
-  "Rent Expense",
-  "Salaries Expense",
-  "Utilities Expense",
-  "Office Supplies Expense",
-  "Travel Expense",
-  "Marketing Expense",
-  "Insurance Expense",
-  "Maintenance Expense",
-  "Professional Fees",
-  "Interest Expense",
-  "Accounts Payable",
-  "Notes Payable",
-  "Loan Payable",
-  "Advance to Supplier",
-  "Prepaid Expenses",
-  "Equipment Purchase",
-  "Inventory Purchase",
+const defaultCreditAccountOptions = [
+  "Service Revenue",
+  "Sales Revenue",
+  "Miscellaneous Income",
+  "Interest Income",
+  "Rent Income",
+  "Commission Income",
+  "Dividend Income",
+  "Other Income",
+  "Accounts Receivable",
+  "Notes Receivable",
+  "Advance from Customer",
+  "Loan Receivable",
 ]
 
-export default function Payment() {
+export default function Receipt() {
   const [entries, setEntries] = useState([])
   const [editingIndex, setEditingIndex] = useState(null)
-  const [debitAccountOptions, setDebitAccountOptions] = useState(defaultDebitAccountOptions)
-  const [paymentHierarchy, setPaymentHierarchy] = useState(defaultPaymentHierarchy)
+  const [creditAccountOptions, setCreditAccountOptions] = useState(defaultCreditAccountOptions)
+  const [receiptHierarchy, setReceiptHierarchy] = useState(defaultReceiptHierarchy)
 
   useEffect(() => {
-    const savedEntries = localStorage.getItem("paymentEntries")
-    const savedDebitAccounts = localStorage.getItem("paymentDebitAccountOptions")
-    const savedHierarchy = localStorage.getItem("paymentHierarchy")
+    const savedEntries = localStorage.getItem("receiptEntries")
+    const savedCreditAccounts = localStorage.getItem("receiptCreditAccountOptions")
+    const savedHierarchy = localStorage.getItem("receiptHierarchy")
 
     if (savedEntries) setEntries(JSON.parse(savedEntries))
-    if (savedDebitAccounts) setDebitAccountOptions(JSON.parse(savedDebitAccounts))
-    if (savedHierarchy) setPaymentHierarchy(JSON.parse(savedHierarchy))
+    if (savedCreditAccounts) setCreditAccountOptions(JSON.parse(savedCreditAccounts))
+    if (savedHierarchy) setReceiptHierarchy(JSON.parse(savedHierarchy))
   }, [])
 
   useEffect(() => {
-    localStorage.setItem("paymentEntries", JSON.stringify(entries))
-    localStorage.setItem("paymentDebitAccountOptions", JSON.stringify(debitAccountOptions))
-    localStorage.setItem("paymentHierarchy", JSON.stringify(paymentHierarchy))
-  }, [entries, debitAccountOptions, paymentHierarchy])
+    localStorage.setItem("receiptEntries", JSON.stringify(entries))
+    localStorage.setItem("receiptCreditAccountOptions", JSON.stringify(creditAccountOptions))
+    localStorage.setItem("receiptHierarchy", JSON.stringify(receiptHierarchy))
+  }, [entries, creditAccountOptions, receiptHierarchy])
 
   const handleSave = (newEntry) => {
     if (editingIndex !== null) {
@@ -61,7 +54,7 @@ export default function Payment() {
   }
 
   const handleDelete = (index) => {
-    if (window.confirm("Are you sure you want to delete this payment entry?")) {
+    if (window.confirm("Are you sure you want to delete this receipt entry?")) {
       setEntries(entries.filter((_, i) => i !== index))
     }
   }
@@ -75,23 +68,23 @@ export default function Payment() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">Payment Management</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">Receipt Management</h1>
 
-        <PaymentForm
+        <ReceiptForm
           onSave={handleSave}
           editData={editingIndex !== null ? entries[editingIndex] : null}
-          debitAccountOptions={debitAccountOptions}
-          setDebitAccountOptions={setDebitAccountOptions}
-          paymentHierarchy={paymentHierarchy}
-          setPaymentHierarchy={setPaymentHierarchy}
+          creditAccountOptions={creditAccountOptions}
+          setCreditAccountOptions={setCreditAccountOptions}
+          receiptHierarchy={receiptHierarchy}
+          setReceiptHierarchy={setReceiptHierarchy}
         />
 
         <div className="mt-12">
-          <h2 className="text-xl font-bold mb-6 text-center">Payment Records</h2>
+          <h2 className="text-xl font-bold mb-6 text-center">Receipt Records</h2>
           {entries.length === 0 ? (
             <div className="text-center py-12 text-gray-500 bg-white rounded-lg shadow-md">
-              <div className="text-lg mb-2">No payment entries found.</div>
-              <div className="text-sm">Create your first payment entry using the form above.</div>
+              <div className="text-lg mb-2">No receipt entries found.</div>
+              <div className="text-sm">Create your first receipt entry using the form above.</div>
             </div>
           ) : (
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
@@ -103,7 +96,7 @@ export default function Payment() {
                         Date
                       </th>
                       <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Payment
+                        Receipt
                       </th>
                       <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Account
@@ -124,12 +117,12 @@ export default function Payment() {
                       <tr key={index} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.date}</td>
                         <td className="px-4 sm:px-6 py-4 text-sm">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            {entry.payment}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {entry.receipt}
                           </span>
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-sm">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                             {entry.account}
                           </span>
                         </td>

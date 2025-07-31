@@ -46,7 +46,7 @@ export default function NavBar() {
 
           {/* Center NavLinks */}
           <div className="w-1/3 flex justify-center space-x-4 sm:space-x-8">
-            <NavBarLink to="/receive" icon={<ArrowDownTrayIcon />} label="Receive" />
+            <NavBarLink to="/receipt" icon={<ArrowDownTrayIcon />} label="Receipt" />
             <NavBarLink to="/payment" icon={<ArrowUpTrayIcon />} label="Payment" />
             <NavBarLink to="/journal" icon={<PencilSquareIcon />} label="Journal" />
             <NavBarLink to="/ledger" icon={<DocumentTextIcon />} label="Ledger" />

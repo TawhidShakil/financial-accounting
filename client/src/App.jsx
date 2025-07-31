@@ -5,7 +5,7 @@ import Register from './pages/auth/Register';
 import Journal from './pages/Journal';
 import Ledger from './pages/Ledger';
 import Payment from './pages/Payment';
-import Receive from './pages/Receive';
+import Receipt from './pages/Receipt';
 import Reports from './pages/Reports';
 import TrialBalance from './pages/TrialBalance';
 
@@ -33,7 +33,7 @@ function App() {
               <Route path="/ledger" element={<Ledger />} />
               <Route path="/trial-balance" element={<TrialBalance />} />
               <Route path="/reports" element={<Reports />} />
-              <Route path="/receive" element={<Receive />} />
+              <Route path="/receipt" element={<Receipt />} />
               <Route path="/payment" element={<Payment />} />
             </>
           ) : (
