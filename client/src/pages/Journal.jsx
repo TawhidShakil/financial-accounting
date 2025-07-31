@@ -17,26 +17,70 @@ const defaultHierarchy = {
 };
 
 export default function Journal() {
-  const [entries, setEntries] = useState([]);
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [accountOptions, setAccountOptions] = useState([]);
-  const [accountHierarchy, setAccountHierarchy] = useState(defaultHierarchy);
-
-  useEffect(() => {
+  const [entries, setEntries] = useState(() => {
     const savedEntries = localStorage.getItem("journalEntries");
-    const savedAccounts = localStorage.getItem("accountOptions");
+    return savedEntries ? JSON.parse(savedEntries) : [];
+  });
+  
+  const [editingIndex, setEditingIndex] = useState(null);
+  
+  const [accountHierarchy, setAccountHierarchy] = useState(() => {
     const savedHierarchy = localStorage.getItem("accountHierarchy");
+    return savedHierarchy ? JSON.parse(savedHierarchy) : defaultHierarchy;
+  });
+  
+  const [accountOptions, setAccountOptions] = useState(() => {
+    const savedAccounts = localStorage.getItem("accountOptions");
+    if (savedAccounts) return JSON.parse(savedAccounts);
     
-    if (savedEntries) setEntries(JSON.parse(savedEntries));
-    if (savedAccounts) setAccountOptions(JSON.parse(savedAccounts));
-    if (savedHierarchy) setAccountHierarchy(JSON.parse(savedHierarchy));
-  }, []);
+    // Initialize from hierarchy if no saved accounts
+    const flattenAccounts = (hierarchy) => {
+      let accounts = [];
+      for (const [key, value] of Object.entries(hierarchy)) {
+        if (Array.isArray(value)) {
+          accounts.push(...value);
+        } else {
+          accounts.push(...flattenAccounts(value));
+        }
+      }
+      return accounts;
+    };
+    
+    const initialAccounts = flattenAccounts(defaultHierarchy);
+    localStorage.setItem("accountOptions", JSON.stringify(initialAccounts));
+    return initialAccounts;
+  });
 
+  // Save to localStorage whenever state changes
   useEffect(() => {
     localStorage.setItem("journalEntries", JSON.stringify(entries));
-    localStorage.setItem("accountOptions", JSON.stringify(accountOptions));
+  }, [entries]);
+
+  useEffect(() => {
     localStorage.setItem("accountHierarchy", JSON.stringify(accountHierarchy));
-  }, [entries, accountOptions, accountHierarchy]);
+  }, [accountHierarchy]);
+
+  useEffect(() => {
+    localStorage.setItem("accountOptions", JSON.stringify(accountOptions));
+  }, [accountOptions]);
+
+  // Update account options whenever hierarchy changes
+  useEffect(() => {
+    const flattenAccounts = (hierarchy) => {
+      let accounts = [];
+      for (const [key, value] of Object.entries(hierarchy)) {
+        if (Array.isArray(value)) {
+          accounts.push(...value);
+        } else {
+          accounts.push(...flattenAccounts(value));
+        }
+      }
+      return accounts;
+    };
+
+    const updatedAccounts = flattenAccounts(accountHierarchy);
+    setAccountOptions(updatedAccounts);
+  }, [accountHierarchy]);
 
   const handleSave = (newEntry) => {
     if (editingIndex !== null) {
