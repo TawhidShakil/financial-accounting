@@ -29,27 +29,173 @@ export default function Receipt() {
   const [receiptHierarchy, setReceiptHierarchy] = useState(defaultReceiptHierarchy)
 
   useEffect(() => {
+    console.log("Receipt: Component mounted, loading data from localStorage...")
+
     const savedEntries = localStorage.getItem("receiptEntries")
     const savedCreditAccounts = localStorage.getItem("receiptCreditAccountOptions")
     const savedHierarchy = localStorage.getItem("receiptHierarchy")
+    const savedLedgerEntries = localStorage.getItem("ledgerEntries")
 
-    if (savedEntries) setEntries(JSON.parse(savedEntries))
-    if (savedCreditAccounts) setCreditAccountOptions(JSON.parse(savedCreditAccounts))
-    if (savedHierarchy) setReceiptHierarchy(JSON.parse(savedHierarchy))
+    console.log("Receipt: Raw localStorage data:", {
+      savedEntries,
+      savedCreditAccounts,
+      savedHierarchy,
+      savedLedgerEntries,
+    })
+
+    let receiptEntries = []
+
+    // First, load existing receipt entries
+    if (savedEntries && savedEntries !== "undefined" && savedEntries !== "null" && savedEntries !== "[]") {
+      try {
+        const parsedEntries = JSON.parse(savedEntries)
+        console.log("Receipt: Successfully parsed existing entries:", parsedEntries)
+        if (Array.isArray(parsedEntries)) {
+          receiptEntries = parsedEntries
+        }
+      } catch (error) {
+        console.error("Receipt: Error parsing savedEntries:", error)
+      }
+    }
+
+    // Then, check for old ledger entries that need to be migrated
+    if (savedLedgerEntries && savedLedgerEntries !== "undefined" && savedLedgerEntries !== "null") {
+      try {
+        const ledgerEntries = JSON.parse(savedLedgerEntries)
+        console.log("Receipt: Found ledger entries:", ledgerEntries)
+
+        // Find Receipt-type entries and convert them back to receipt format
+        const receiptLedgerEntries = ledgerEntries.filter((entry) => entry.type === "Receipt")
+        console.log("Receipt: Found receipt ledger entries:", receiptLedgerEntries)
+
+        // Group by reference to reconstruct original receipt entries
+        const receiptGroups = {}
+        receiptLedgerEntries.forEach((entry) => {
+          if (!receiptGroups[entry.reference]) {
+            receiptGroups[entry.reference] = []
+          }
+          receiptGroups[entry.reference].push(entry)
+        })
+
+        console.log("Receipt: Grouped receipt entries:", receiptGroups)
+
+        // Convert back to receipt format
+        const migratedReceipts = Object.values(receiptGroups)
+          .map((group) => {
+            // Find debit and credit entries
+            const debitEntry = group.find((e) => e.debit > 0)
+            const creditEntry = group.find((e) => e.credit > 0)
+
+            if (debitEntry && creditEntry) {
+              return {
+                date: debitEntry.date,
+                receipt: debitEntry.account, // The account that was debited (receipt account)
+                account: creditEntry.account, // The account that was credited
+                amount: debitEntry.debit,
+                description: debitEntry.description || "",
+              }
+            }
+            return null
+          })
+          .filter(Boolean)
+
+        console.log("Receipt: Migrated receipts from ledger:", migratedReceipts)
+
+        // Merge with existing entries, avoiding duplicates
+        const existingReferences = new Set()
+        receiptEntries.forEach((entry) => {
+          // Create a reference-like key for existing entries
+          const refKey = `${entry.date}-${entry.receipt}-${entry.account}-${entry.amount}`
+          existingReferences.add(refKey)
+        })
+
+        const newMigratedReceipts = migratedReceipts.filter((receipt) => {
+          const refKey = `${receipt.date}-${receipt.receipt}-${receipt.account}-${receipt.amount}`
+          return !existingReferences.has(refKey)
+        })
+
+        console.log("Receipt: New migrated receipts (avoiding duplicates):", newMigratedReceipts)
+
+        receiptEntries = [...receiptEntries, ...newMigratedReceipts]
+
+        // Save the merged data back to localStorage
+        if (newMigratedReceipts.length > 0) {
+          localStorage.setItem("receiptEntries", JSON.stringify(receiptEntries))
+          console.log("Receipt: Saved migrated data to receiptEntries")
+        }
+      } catch (error) {
+        console.error("Receipt: Error processing ledger entries:", error)
+      }
+    }
+
+    // Sort entries by date (newest first)
+    receiptEntries.sort((a, b) => new Date(b.date) - new Date(a.date))
+
+    setEntries(receiptEntries)
+    console.log("Receipt: Final entries set:", receiptEntries)
+
+    // Load other settings
+    if (savedCreditAccounts && savedCreditAccounts !== "undefined") {
+      try {
+        setCreditAccountOptions(JSON.parse(savedCreditAccounts))
+      } catch (error) {
+        console.error("Receipt: Error parsing credit accounts:", error)
+      }
+    }
+
+    if (savedHierarchy && savedHierarchy !== "undefined") {
+      try {
+        setReceiptHierarchy(JSON.parse(savedHierarchy))
+      } catch (error) {
+        console.error("Receipt: Error parsing hierarchy:", error)
+      }
+    }
   }, [])
 
   useEffect(() => {
-    localStorage.setItem("receiptEntries", JSON.stringify(entries))
+    console.log("Receipt: Save useEffect triggered, entries:", entries)
+
+    // Only save if we have entries
+    if (entries.length > 0) {
+      localStorage.setItem("receiptEntries", JSON.stringify(entries))
+      console.log("Receipt: Saved entries to localStorage:", JSON.stringify(entries))
+    } else {
+      // Check if localStorage has data that we shouldn't overwrite
+      const existing = localStorage.getItem("receiptEntries")
+      if (existing && existing !== "[]" && existing !== "null") {
+        console.log("Receipt: Not overwriting existing localStorage data with empty array")
+      } else {
+        localStorage.setItem("receiptEntries", JSON.stringify(entries))
+        console.log("Receipt: Saved empty array to localStorage")
+      }
+    }
+
     localStorage.setItem("receiptCreditAccountOptions", JSON.stringify(creditAccountOptions))
     localStorage.setItem("receiptHierarchy", JSON.stringify(receiptHierarchy))
   }, [entries, creditAccountOptions, receiptHierarchy])
 
   const handleSave = (newEntry) => {
+    console.log("Receipt: handleSave called with:", newEntry)
+    console.log("Receipt: Current entries before save:", entries)
+    console.log("Receipt: editingIndex:", editingIndex)
+
+    let updatedEntries
+
     if (editingIndex !== null) {
-      setEntries(entries.map((entry, index) => (index === editingIndex ? newEntry : entry)))
+      updatedEntries = entries.map((entry, index) => (index === editingIndex ? newEntry : entry))
+      console.log("Receipt: Updated entries (edit mode):", updatedEntries)
     } else {
-      setEntries([...entries, newEntry])
+      updatedEntries = [...entries, newEntry]
+      console.log("Receipt: Updated entries (new entry):", updatedEntries)
     }
+
+    // Update state
+    setEntries(updatedEntries)
+
+    // Force save to localStorage immediately
+    localStorage.setItem("receiptEntries", JSON.stringify(updatedEntries))
+    console.log("Receipt: Saved to localStorage:", updatedEntries)
+
     setEditingIndex(null)
   }
 

@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import PaymentForm from "../components/PaymentForm"
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline"
@@ -36,27 +34,173 @@ export default function Payment() {
   const [paymentHierarchy, setPaymentHierarchy] = useState(defaultPaymentHierarchy)
 
   useEffect(() => {
+    console.log("Payment: Component mounted, loading data from localStorage...")
+
     const savedEntries = localStorage.getItem("paymentEntries")
     const savedDebitAccounts = localStorage.getItem("paymentDebitAccountOptions")
     const savedHierarchy = localStorage.getItem("paymentHierarchy")
+    const savedLedgerEntries = localStorage.getItem("ledgerEntries")
 
-    if (savedEntries) setEntries(JSON.parse(savedEntries))
-    if (savedDebitAccounts) setDebitAccountOptions(JSON.parse(savedDebitAccounts))
-    if (savedHierarchy) setPaymentHierarchy(JSON.parse(savedHierarchy))
+    console.log("Payment: Raw localStorage data:", {
+      savedEntries,
+      savedDebitAccounts,
+      savedHierarchy,
+      savedLedgerEntries,
+    })
+
+    let paymentEntries = []
+
+    // First, load existing payment entries
+    if (savedEntries && savedEntries !== "undefined" && savedEntries !== "null" && savedEntries !== "[]") {
+      try {
+        const parsedEntries = JSON.parse(savedEntries)
+        console.log("Payment: Successfully parsed existing entries:", parsedEntries)
+        if (Array.isArray(parsedEntries)) {
+          paymentEntries = parsedEntries
+        }
+      } catch (error) {
+        console.error("Payment: Error parsing savedEntries:", error)
+      }
+    }
+
+    // Then, check for old ledger entries that need to be migrated
+    if (savedLedgerEntries && savedLedgerEntries !== "undefined" && savedLedgerEntries !== "null") {
+      try {
+        const ledgerEntries = JSON.parse(savedLedgerEntries)
+        console.log("Payment: Found ledger entries:", ledgerEntries)
+
+        // Find Payment-type entries and convert them back to payment format
+        const paymentLedgerEntries = ledgerEntries.filter((entry) => entry.type === "Payment")
+        console.log("Payment: Found payment ledger entries:", paymentLedgerEntries)
+
+        // Group by reference to reconstruct original payment entries
+        const paymentGroups = {}
+        paymentLedgerEntries.forEach((entry) => {
+          if (!paymentGroups[entry.reference]) {
+            paymentGroups[entry.reference] = []
+          }
+          paymentGroups[entry.reference].push(entry)
+        })
+
+        console.log("Payment: Grouped payment entries:", paymentGroups)
+
+        // Convert back to payment format
+        const migratedPayments = Object.values(paymentGroups)
+          .map((group) => {
+            // Find debit and credit entries
+            const debitEntry = group.find((e) => e.debit > 0)
+            const creditEntry = group.find((e) => e.credit > 0)
+
+            if (debitEntry && creditEntry) {
+              return {
+                date: debitEntry.date,
+                payment: creditEntry.account, // The account that was credited (payment account)
+                account: debitEntry.account, // The account that was debited
+                amount: debitEntry.debit,
+                description: debitEntry.description || "",
+              }
+            }
+            return null
+          })
+          .filter(Boolean)
+
+        console.log("Payment: Migrated payments from ledger:", migratedPayments)
+
+        // Merge with existing entries, avoiding duplicates
+        const existingReferences = new Set()
+        paymentEntries.forEach((entry) => {
+          // Create a reference-like key for existing entries
+          const refKey = `${entry.date}-${entry.payment}-${entry.account}-${entry.amount}`
+          existingReferences.add(refKey)
+        })
+
+        const newMigratedPayments = migratedPayments.filter((payment) => {
+          const refKey = `${payment.date}-${payment.payment}-${payment.account}-${payment.amount}`
+          return !existingReferences.has(refKey)
+        })
+
+        console.log("Payment: New migrated payments (avoiding duplicates):", newMigratedPayments)
+
+        paymentEntries = [...paymentEntries, ...newMigratedPayments]
+
+        // Save the merged data back to localStorage
+        if (newMigratedPayments.length > 0) {
+          localStorage.setItem("paymentEntries", JSON.stringify(paymentEntries))
+          console.log("Payment: Saved migrated data to paymentEntries")
+        }
+      } catch (error) {
+        console.error("Payment: Error processing ledger entries:", error)
+      }
+    }
+
+    // Sort entries by date (newest first)
+    paymentEntries.sort((a, b) => new Date(b.date) - new Date(a.date))
+
+    setEntries(paymentEntries)
+    console.log("Payment: Final entries set:", paymentEntries)
+
+    // Load other settings
+    if (savedDebitAccounts && savedDebitAccounts !== "undefined") {
+      try {
+        setDebitAccountOptions(JSON.parse(savedDebitAccounts))
+      } catch (error) {
+        console.error("Payment: Error parsing debit accounts:", error)
+      }
+    }
+
+    if (savedHierarchy && savedHierarchy !== "undefined") {
+      try {
+        setPaymentHierarchy(JSON.parse(savedHierarchy))
+      } catch (error) {
+        console.error("Payment: Error parsing hierarchy:", error)
+      }
+    }
   }, [])
 
   useEffect(() => {
-    localStorage.setItem("paymentEntries", JSON.stringify(entries))
+    console.log("Payment: Save useEffect triggered, entries:", entries)
+
+    // Only save if we have entries
+    if (entries.length > 0) {
+      localStorage.setItem("paymentEntries", JSON.stringify(entries))
+      console.log("Payment: Saved entries to localStorage:", JSON.stringify(entries))
+    } else {
+      // Check if localStorage has data that we shouldn't overwrite
+      const existing = localStorage.getItem("paymentEntries")
+      if (existing && existing !== "[]" && existing !== "null") {
+        console.log("Payment: Not overwriting existing localStorage data with empty array")
+      } else {
+        localStorage.setItem("paymentEntries", JSON.stringify(entries))
+        console.log("Payment: Saved empty array to localStorage")
+      }
+    }
+
     localStorage.setItem("paymentDebitAccountOptions", JSON.stringify(debitAccountOptions))
     localStorage.setItem("paymentHierarchy", JSON.stringify(paymentHierarchy))
   }, [entries, debitAccountOptions, paymentHierarchy])
 
   const handleSave = (newEntry) => {
+    console.log("Payment: handleSave called with:", newEntry)
+    console.log("Payment: Current entries before save:", entries)
+    console.log("Payment: editingIndex:", editingIndex)
+
+    let updatedEntries
+
     if (editingIndex !== null) {
-      setEntries(entries.map((entry, index) => (index === editingIndex ? newEntry : entry)))
+      updatedEntries = entries.map((entry, index) => (index === editingIndex ? newEntry : entry))
+      console.log("Payment: Updated entries (edit mode):", updatedEntries)
     } else {
-      setEntries([...entries, newEntry])
+      updatedEntries = [...entries, newEntry]
+      console.log("Payment: Updated entries (new entry):", updatedEntries)
     }
+
+    // Update state
+    setEntries(updatedEntries)
+
+    // Force save to localStorage immediately
+    localStorage.setItem("paymentEntries", JSON.stringify(updatedEntries))
+    console.log("Payment: Saved to localStorage:", updatedEntries)
+
     setEditingIndex(null)
   }
 
