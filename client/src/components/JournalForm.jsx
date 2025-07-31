@@ -1,26 +1,76 @@
 import React, { useState, useEffect, useRef } from "react";
 
-const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, accountHierarchy, setAccountHierarchy }) => {
+const JournalForm = ({
+  onSave,
+  editData,
+  accountOptions,
+  setAccountOptions,
+  accountHierarchy,
+  setAccountHierarchy,
+}) => {
   const [journalDate, setJournalDate] = useState("");
   const [entries, setEntries] = useState([
     { account: "", type: "Debit", amount: "" },
     { account: "", type: "Credit", amount: "" },
   ]);
   const [successMessage, setSuccessMessage] = useState("");
+  const [description, setDescription] = useState("");
+  
+  // Refs for focus management
+  const dateInputRef = useRef(null);
+  const accountSelectRefs = useRef([]);
+  const typeSelectRefs = useRef([]);
+  const amountInputRefs = useRef([]);
+  const descriptionInputRef = useRef(null);
+  const formRef = useRef(null);
+
+  // Initialize refs arrays
+  useEffect(() => {
+    accountSelectRefs.current = accountSelectRefs.current.slice(0, entries.length);
+    typeSelectRefs.current = typeSelectRefs.current.slice(0, entries.length);
+    amountInputRefs.current = amountInputRefs.current.slice(0, entries.length);
+  }, [entries]);
 
   // Initialize form with edit data if provided
   useEffect(() => {
     if (editData) {
       setJournalDate(editData.date);
+      setDescription(editData.description || "");
       setEntries(editData.entries);
     } else {
       setJournalDate("");
+      setDescription("");
       setEntries([
         { account: "", type: "Debit", amount: "" },
         { account: "", type: "Credit", amount: "" },
       ]);
     }
   }, [editData]);
+
+  // Handle Enter key navigation
+  const handleKeyDown = (e, index, fieldType) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      
+      if (fieldType === 'date') {
+        if (accountSelectRefs.current[0]) {
+          accountSelectRefs.current[0].focus();
+        }
+      } else if (fieldType === 'account') {
+        typeSelectRefs.current[index]?.focus();
+      } else if (fieldType === 'type') {
+        amountInputRefs.current[index]?.focus();
+      } else if (fieldType === 'amount') {
+        if (index < entries.length - 1) {
+          accountSelectRefs.current[index + 1]?.focus();
+        } else {
+          descriptionInputRef.current?.focus();
+        }
+      } else if (fieldType === 'description') {
+        handleSubmit({ preventDefault: () => {} });
+      }
+    }
+  };
 
   // Account Select Component
   const AccountSelect = ({ value, onChange, index }) => {
@@ -34,25 +84,29 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
     const dropdownRef = useRef(null);
 
     useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowHierarchy(false);
-        setCurrentCategory(null);
-        setCurrentSubcategory(null);
-      }
-    };
+      const handleClickOutside = (event) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setShowHierarchy(false);
+          setCurrentCategory(null);
+          setCurrentSubcategory(null);
+        }
+      };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, []);
 
     const handleAccountSelect = (account) => {
       onChange(account);
       setShowHierarchy(false);
       setCurrentCategory(null);
       setCurrentSubcategory(null);
+      // Auto-focus to type select after account selection
+      setTimeout(() => {
+        typeSelectRefs.current[index]?.focus();
+      }, 0);
     };
 
     const startAddingNewAccount = (category, subcategory = null) => {
@@ -80,11 +134,9 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
       }
 
       setAccountHierarchy(updatedHierarchy);
-      
       const updatedAccounts = accountOptions.filter(acc => acc !== account);
       setAccountOptions(updatedAccounts);
       
-      // Clear the selection if the deleted account was selected
       if (value === account) {
         onChange("");
       }
@@ -113,17 +165,14 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
           return;
         }
 
-        // Check for existing account
         const allAccounts = getAllAccountsFromHierarchy(accountHierarchy);
         if (allAccounts.includes(trimmedName)) {
           alert("Account name already exists");
           return;
         }
 
-        // Create a deep copy of the hierarchy
         const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy));
         
-        // Add to the hierarchy
         if (newAccountSubcategory) {
           if (!updatedHierarchy[newAccountCategory]?.[newAccountSubcategory]) {
             updatedHierarchy[newAccountCategory][newAccountSubcategory] = [];
@@ -140,16 +189,17 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
           updatedHierarchy[newAccountCategory]["Other"].push(trimmedName);
         }
 
-        // Update states
         setAccountHierarchy(updatedHierarchy);
-        
         const updatedAccounts = [...new Set([...accountOptions, trimmedName])];
         setAccountOptions(updatedAccounts);
-        
-        // Select the new account and reset state
         onChange(trimmedName);
         setIsAddingNewAccount(false);
         setNewAccountName("");
+        
+        // Auto-focus to type select after adding new account
+        setTimeout(() => {
+          typeSelectRefs.current[index]?.focus();
+        }, 0);
       } catch (error) {
         console.error("Error saving new account:", error);
         alert("An error occurred while saving the new account");
@@ -268,7 +318,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
                 }}
                 className="text-red-500 hover:text-red-700 ml-2"
                 title="Delete account"
-              >
+                >
                 −
               </button>
             </div>
@@ -289,7 +339,12 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
     };
 
     return (
-      <div className="relative" ref={dropdownRef}>
+      <div 
+        className="relative" 
+        ref={el => accountSelectRefs.current[index] = el}
+        tabIndex={0}
+        onKeyDown={(e) => handleKeyDown(e, index, 'account')}
+      >
         <div
           onClick={() => setShowHierarchy(!showHierarchy)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer"
@@ -405,6 +460,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
 
     const newEntry = {
       date: journalDate,
+      description: description,
       entries: entries.map((entry) => ({
         ...entry,
         amount: parseFloat(entry.amount),
@@ -427,6 +483,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
 
     if (!editData) {
       setJournalDate("");
+      setDescription("");
       setEntries([
         { account: "", type: "Debit", amount: "" },
         { account: "", type: "Credit", amount: "" },
@@ -436,6 +493,7 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md"
     >
@@ -455,9 +513,11 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
             Journal Date
           </label>
           <input
+            ref={dateInputRef}
             type="date"
             value={journalDate}
             onChange={(e) => setJournalDate(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, 0, 'date')}
             className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
             required
           />
@@ -483,8 +543,10 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
 
           <div className="col-span-3">
             <select
+              ref={el => typeSelectRefs.current[index] = el}
               value={entry.type}
               onChange={(e) => handleChange(index, "type", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, index, 'type')}
               className={`w-full p-2 border rounded-md ${
                 entry.type === "Debit"
                   ? "border-green-300 bg-green-50"
@@ -498,9 +560,11 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
 
           <div className="col-span-3">
             <input
+              ref={el => amountInputRefs.current[index] = el}
               type="number"
               value={entry.amount}
               onChange={(e) => handleChange(index, "amount", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, index, 'amount')}
               className="w-full p-2 border border-gray-300 rounded-md"
               placeholder="0.00"
               step="0.01"
@@ -531,11 +595,27 @@ const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, acco
         <span className="mr-1">+</span>Add Account
       </button>
 
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Description (Optional)
+        </label>
+        <input
+          ref={descriptionInputRef}
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, 0, 'description')}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+          placeholder="Enter a description for this journal entry"
+        />
+      </div>
+
       <div className="flex justify-end gap-3">
         <button
           type="button"
           onClick={() => {
             setJournalDate("");
+            setDescription("");
             setEntries([
               { account: "", type: "Debit", amount: "" },
               { account: "", type: "Credit", amount: "" },
