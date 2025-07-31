@@ -1,65 +1,60 @@
 import { useState, useEffect } from "react"
-import PaymentForm from "../components/PaymentForm"
+import ReceiptForm from "../components/ReceiptForm"
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline"
 
-const defaultPaymentHierarchy = {
+const defaultReceiptHierarchy = {
   Cash: [],
   Bank: ["Trust Bank", "NRBC Bank"],
 }
 
-const defaultDebitAccountOptions = [
-  "Rent Expense",
-  "Salaries Expense",
-  "Utilities Expense",
-  "Office Supplies Expense",
-  "Travel Expense",
-  "Marketing Expense",
-  "Insurance Expense",
-  "Maintenance Expense",
-  "Professional Fees",
-  "Interest Expense",
-  "Accounts Payable",
-  "Notes Payable",
-  "Loan Payable",
-  "Advance to Supplier",
-  "Prepaid Expenses",
-  "Equipment Purchase",
-  "Inventory Purchase",
+const defaultCreditAccountOptions = [
+  "Service Revenue",
+  "Sales Revenue",
+  "Miscellaneous Income",
+  "Interest Income",
+  "Rent Income",
+  "Commission Income",
+  "Dividend Income",
+  "Other Income",
+  "Accounts Receivable",
+  "Notes Receivable",
+  "Advance from Customer",
+  "Loan Receivable",
 ]
 
-export default function Payment() {
+export default function Receipt() {
   const [entries, setEntries] = useState([])
   const [editingIndex, setEditingIndex] = useState(null)
-  const [debitAccountOptions, setDebitAccountOptions] = useState(defaultDebitAccountOptions)
-  const [paymentHierarchy, setPaymentHierarchy] = useState(defaultPaymentHierarchy)
+  const [creditAccountOptions, setCreditAccountOptions] = useState(defaultCreditAccountOptions)
+  const [receiptHierarchy, setReceiptHierarchy] = useState(defaultReceiptHierarchy)
 
   useEffect(() => {
-    console.log("Payment: Component mounted, loading data from localStorage...")
+    console.log("Receipt: Component mounted, loading data from localStorage...")
 
-    const savedEntries = localStorage.getItem("paymentEntries")
-    const savedDebitAccounts = localStorage.getItem("paymentDebitAccountOptions")
-    const savedHierarchy = localStorage.getItem("paymentHierarchy")
+    const savedEntries = localStorage.getItem("receiptEntries")
+    const savedCreditAccounts = localStorage.getItem("receiptCreditAccountOptions")
+    const savedHierarchy = localStorage.getItem("receiptHierarchy")
     const savedLedgerEntries = localStorage.getItem("ledgerEntries")
 
-    console.log("Payment: Raw localStorage data:", {
+    console.log("Receipt: Raw localStorage data:", {
       savedEntries,
-      savedDebitAccounts,
+      savedCreditAccounts,
       savedHierarchy,
       savedLedgerEntries,
     })
 
-    let paymentEntries = []
+    let receiptEntries = []
 
-    // First, load existing payment entries
+    // First, load existing receipt entries
     if (savedEntries && savedEntries !== "undefined" && savedEntries !== "null" && savedEntries !== "[]") {
       try {
         const parsedEntries = JSON.parse(savedEntries)
-        console.log("Payment: Successfully parsed existing entries:", parsedEntries)
+        console.log("Receipt: Successfully parsed existing entries:", parsedEntries)
         if (Array.isArray(parsedEntries)) {
-          paymentEntries = parsedEntries
+          receiptEntries = parsedEntries
         }
       } catch (error) {
-        console.error("Payment: Error parsing savedEntries:", error)
+        console.error("Receipt: Error parsing savedEntries:", error)
       }
     }
 
@@ -67,25 +62,25 @@ export default function Payment() {
     if (savedLedgerEntries && savedLedgerEntries !== "undefined" && savedLedgerEntries !== "null") {
       try {
         const ledgerEntries = JSON.parse(savedLedgerEntries)
-        console.log("Payment: Found ledger entries:", ledgerEntries)
+        console.log("Receipt: Found ledger entries:", ledgerEntries)
 
-        // Find Payment-type entries and convert them back to payment format
-        const paymentLedgerEntries = ledgerEntries.filter((entry) => entry.type === "Payment")
-        console.log("Payment: Found payment ledger entries:", paymentLedgerEntries)
+        // Find Receipt-type entries and convert them back to receipt format
+        const receiptLedgerEntries = ledgerEntries.filter((entry) => entry.type === "Receipt")
+        console.log("Receipt: Found receipt ledger entries:", receiptLedgerEntries)
 
-        // Group by reference to reconstruct original payment entries
-        const paymentGroups = {}
-        paymentLedgerEntries.forEach((entry) => {
-          if (!paymentGroups[entry.reference]) {
-            paymentGroups[entry.reference] = []
+        // Group by reference to reconstruct original receipt entries
+        const receiptGroups = {}
+        receiptLedgerEntries.forEach((entry) => {
+          if (!receiptGroups[entry.reference]) {
+            receiptGroups[entry.reference] = []
           }
-          paymentGroups[entry.reference].push(entry)
+          receiptGroups[entry.reference].push(entry)
         })
 
-        console.log("Payment: Grouped payment entries:", paymentGroups)
+        console.log("Receipt: Grouped receipt entries:", receiptGroups)
 
-        // Convert back to payment format
-        const migratedPayments = Object.values(paymentGroups)
+        // Convert back to receipt format
+        const migratedReceipts = Object.values(receiptGroups)
           .map((group) => {
             // Find debit and credit entries
             const debitEntry = group.find((e) => e.debit > 0)
@@ -94,8 +89,8 @@ export default function Payment() {
             if (debitEntry && creditEntry) {
               return {
                 date: debitEntry.date,
-                payment: creditEntry.account, // The account that was credited (payment account)
-                account: debitEntry.account, // The account that was debited
+                receipt: debitEntry.account, // The account that was debited (receipt account)
+                account: creditEntry.account, // The account that was credited
                 amount: debitEntry.debit,
                 description: debitEntry.description || "",
               }
@@ -104,108 +99,108 @@ export default function Payment() {
           })
           .filter(Boolean)
 
-        console.log("Payment: Migrated payments from ledger:", migratedPayments)
+        console.log("Receipt: Migrated receipts from ledger:", migratedReceipts)
 
         // Merge with existing entries, avoiding duplicates
         const existingReferences = new Set()
-        paymentEntries.forEach((entry) => {
+        receiptEntries.forEach((entry) => {
           // Create a reference-like key for existing entries
-          const refKey = `${entry.date}-${entry.payment}-${entry.account}-${entry.amount}`
+          const refKey = `${entry.date}-${entry.receipt}-${entry.account}-${entry.amount}`
           existingReferences.add(refKey)
         })
 
-        const newMigratedPayments = migratedPayments.filter((payment) => {
-          const refKey = `${payment.date}-${payment.payment}-${payment.account}-${payment.amount}`
+        const newMigratedReceipts = migratedReceipts.filter((receipt) => {
+          const refKey = `${receipt.date}-${receipt.receipt}-${receipt.account}-${receipt.amount}`
           return !existingReferences.has(refKey)
         })
 
-        console.log("Payment: New migrated payments (avoiding duplicates):", newMigratedPayments)
+        console.log("Receipt: New migrated receipts (avoiding duplicates):", newMigratedReceipts)
 
-        paymentEntries = [...paymentEntries, ...newMigratedPayments]
+        receiptEntries = [...receiptEntries, ...newMigratedReceipts]
 
         // Save the merged data back to localStorage
-        if (newMigratedPayments.length > 0) {
-          localStorage.setItem("paymentEntries", JSON.stringify(paymentEntries))
-          console.log("Payment: Saved migrated data to paymentEntries")
+        if (newMigratedReceipts.length > 0) {
+          localStorage.setItem("receiptEntries", JSON.stringify(receiptEntries))
+          console.log("Receipt: Saved migrated data to receiptEntries")
         }
       } catch (error) {
-        console.error("Payment: Error processing ledger entries:", error)
+        console.error("Receipt: Error processing ledger entries:", error)
       }
     }
 
     // Sort entries by date (newest first)
-    paymentEntries.sort((a, b) => new Date(b.date) - new Date(a.date))
+    receiptEntries.sort((a, b) => new Date(b.date) - new Date(a.date))
 
-    setEntries(paymentEntries)
-    console.log("Payment: Final entries set:", paymentEntries)
+    setEntries(receiptEntries)
+    console.log("Receipt: Final entries set:", receiptEntries)
 
     // Load other settings
-    if (savedDebitAccounts && savedDebitAccounts !== "undefined") {
+    if (savedCreditAccounts && savedCreditAccounts !== "undefined") {
       try {
-        setDebitAccountOptions(JSON.parse(savedDebitAccounts))
+        setCreditAccountOptions(JSON.parse(savedCreditAccounts))
       } catch (error) {
-        console.error("Payment: Error parsing debit accounts:", error)
+        console.error("Receipt: Error parsing credit accounts:", error)
       }
     }
 
     if (savedHierarchy && savedHierarchy !== "undefined") {
       try {
-        setPaymentHierarchy(JSON.parse(savedHierarchy))
+        setReceiptHierarchy(JSON.parse(savedHierarchy))
       } catch (error) {
-        console.error("Payment: Error parsing hierarchy:", error)
+        console.error("Receipt: Error parsing hierarchy:", error)
       }
     }
   }, [])
 
   useEffect(() => {
-    console.log("Payment: Save useEffect triggered, entries:", entries)
+    console.log("Receipt: Save useEffect triggered, entries:", entries)
 
     // Only save if we have entries
     if (entries.length > 0) {
-      localStorage.setItem("paymentEntries", JSON.stringify(entries))
-      console.log("Payment: Saved entries to localStorage:", JSON.stringify(entries))
+      localStorage.setItem("receiptEntries", JSON.stringify(entries))
+      console.log("Receipt: Saved entries to localStorage:", JSON.stringify(entries))
     } else {
       // Check if localStorage has data that we shouldn't overwrite
-      const existing = localStorage.getItem("paymentEntries")
+      const existing = localStorage.getItem("receiptEntries")
       if (existing && existing !== "[]" && existing !== "null") {
-        console.log("Payment: Not overwriting existing localStorage data with empty array")
+        console.log("Receipt: Not overwriting existing localStorage data with empty array")
       } else {
-        localStorage.setItem("paymentEntries", JSON.stringify(entries))
-        console.log("Payment: Saved empty array to localStorage")
+        localStorage.setItem("receiptEntries", JSON.stringify(entries))
+        console.log("Receipt: Saved empty array to localStorage")
       }
     }
 
-    localStorage.setItem("paymentDebitAccountOptions", JSON.stringify(debitAccountOptions))
-    localStorage.setItem("paymentHierarchy", JSON.stringify(paymentHierarchy))
-  }, [entries, debitAccountOptions, paymentHierarchy])
+    localStorage.setItem("receiptCreditAccountOptions", JSON.stringify(creditAccountOptions))
+    localStorage.setItem("receiptHierarchy", JSON.stringify(receiptHierarchy))
+  }, [entries, creditAccountOptions, receiptHierarchy])
 
   const handleSave = (newEntry) => {
-    console.log("Payment: handleSave called with:", newEntry)
-    console.log("Payment: Current entries before save:", entries)
-    console.log("Payment: editingIndex:", editingIndex)
+    console.log("Receipt: handleSave called with:", newEntry)
+    console.log("Receipt: Current entries before save:", entries)
+    console.log("Receipt: editingIndex:", editingIndex)
 
     let updatedEntries
 
     if (editingIndex !== null) {
       updatedEntries = entries.map((entry, index) => (index === editingIndex ? newEntry : entry))
-      console.log("Payment: Updated entries (edit mode):", updatedEntries)
+      console.log("Receipt: Updated entries (edit mode):", updatedEntries)
     } else {
       updatedEntries = [...entries, newEntry]
-      console.log("Payment: Updated entries (new entry):", updatedEntries)
+      console.log("Receipt: Updated entries (new entry):", updatedEntries)
     }
 
     // Update state
     setEntries(updatedEntries)
 
     // Force save to localStorage immediately
-    localStorage.setItem("paymentEntries", JSON.stringify(updatedEntries))
-    console.log("Payment: Saved to localStorage:", updatedEntries)
+    localStorage.setItem("receiptEntries", JSON.stringify(updatedEntries))
+    console.log("Receipt: Saved to localStorage:", updatedEntries)
 
     setEditingIndex(null)
   }
 
   const handleDelete = (index) => {
-    if (window.confirm("Are you sure you want to delete this payment entry?")) {
+    if (window.confirm("Are you sure you want to delete this receipt entry?")) {
       setEntries(entries.filter((_, i) => i !== index))
     }
   }
@@ -219,23 +214,23 @@ export default function Payment() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">Payment Management</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">Receipt Management</h1>
 
-        <PaymentForm
+        <ReceiptForm
           onSave={handleSave}
           editData={editingIndex !== null ? entries[editingIndex] : null}
-          debitAccountOptions={debitAccountOptions}
-          setDebitAccountOptions={setDebitAccountOptions}
-          paymentHierarchy={paymentHierarchy}
-          setPaymentHierarchy={setPaymentHierarchy}
+          creditAccountOptions={creditAccountOptions}
+          setCreditAccountOptions={setCreditAccountOptions}
+          receiptHierarchy={receiptHierarchy}
+          setReceiptHierarchy={setReceiptHierarchy}
         />
 
         <div className="mt-12">
-          <h2 className="text-xl font-bold mb-6 text-center">Payment Records</h2>
+          <h2 className="text-xl font-bold mb-6 text-center">Receipt Records</h2>
           {entries.length === 0 ? (
             <div className="text-center py-12 text-gray-500 bg-white rounded-lg shadow-md">
-              <div className="text-lg mb-2">No payment entries found.</div>
-              <div className="text-sm">Create your first payment entry using the form above.</div>
+              <div className="text-lg mb-2">No receipt entries found.</div>
+              <div className="text-sm">Create your first receipt entry using the form above.</div>
             </div>
           ) : (
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
@@ -247,7 +242,7 @@ export default function Payment() {
                         Date
                       </th>
                       <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Payment
+                        Receipt
                       </th>
                       <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Account
@@ -268,12 +263,12 @@ export default function Payment() {
                       <tr key={index} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.date}</td>
                         <td className="px-4 sm:px-6 py-4 text-sm">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            {entry.payment}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {entry.receipt}
                           </span>
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-sm">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                             {entry.account}
                           </span>
                         </td>

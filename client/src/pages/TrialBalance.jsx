@@ -1,244 +1,397 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import { saveAs } from "file-saver";
-import * as XLSX from "xlsx";
+import { useState, useEffect } from "react"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+import * as XLSX from "xlsx"
 
 export default function TrialBalance() {
-  const [trialData, setTrialData] = useState([]);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [accountBalances, setAccountBalances] = useState([])
+  const [totalDebits, setTotalDebits] = useState(0)
+  const [totalCredits, setTotalCredits] = useState(0)
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
+  const [showExportMenu, setShowExportMenu] = useState(false)
+
+  // Account type classification
+  const getAccountType = (accountName) => {
+    const account = accountName.toLowerCase()
+
+    // Asset accounts
+    if (
+      account.includes("cash") ||
+      account.includes("bank") ||
+      account.includes("receivable") ||
+      account.includes("inventory") ||
+      account.includes("equipment") ||
+      account.includes("building") ||
+      account.includes("land") ||
+      account.includes("prepaid") ||
+      account.includes("advance to")
+    ) {
+      return "asset"
+    }
+
+    // Expense accounts
+    if (
+      account.includes("expense") ||
+      account.includes("cost") ||
+      account.includes("salary") ||
+      account.includes("rent") ||
+      account.includes("utility") ||
+      account.includes("travel") ||
+      account.includes("marketing") ||
+      account.includes("insurance") ||
+      account.includes("maintenance") ||
+      account.includes("professional fees") ||
+      account.includes("interest expense")
+    ) {
+      return "expense"
+    }
+
+    // Liability accounts
+    if (
+      account.includes("payable") ||
+      account.includes("loan") ||
+      account.includes("advance from") ||
+      account.includes("liability") ||
+      account.includes("notes payable")
+    ) {
+      return "liability"
+    }
+
+    // Revenue accounts
+    if (
+      account.includes("revenue") ||
+      account.includes("income") ||
+      account.includes("sales") ||
+      account.includes("service") ||
+      account.includes("commission") ||
+      account.includes("dividend income") ||
+      account.includes("rent income") ||
+      account.includes("interest income")
+    ) {
+      return "revenue"
+    }
+
+    // Capital accounts
+    if (account.includes("capital") || account.includes("equity") || account.includes("retained earnings")) {
+      return "capital"
+    }
+
+    // Default to asset if unknown
+    return "asset"
+  }
+
+  // Check if balance is abnormal for the account type
+  const isAbnormalBalance = (accountName, balanceType) => {
+    const accountType = getAccountType(accountName)
+
+    // Asset and Expense should normally be Debit
+    if ((accountType === "asset" || accountType === "expense") && balanceType === "Cr") {
+      return true
+    }
+
+    // Liability, Revenue, and Capital should normally be Credit
+    if (
+      (accountType === "liability" || accountType === "revenue" || accountType === "capital") &&
+      balanceType === "Dr"
+    ) {
+      return true
+    }
+
+    return false
+  }
 
   useEffect(() => {
-    const saved = localStorage.getItem("journalEntries");
-    if (saved) {
-      const parsed = JSON.parse(saved);
+    // Read all entries from localStorage
+    const savedLedgerEntries = localStorage.getItem("ledgerEntries") || "[]"
+    const savedJournalEntries = localStorage.getItem("journalEntries") || "[]"
 
-      const filtered = parsed.filter((entry) => {
-        if (!fromDate && !toDate) return true;
-        const entryDate = new Date(entry.date);
-        const from = fromDate ? new Date(fromDate) : null;
-        const to = toDate ? new Date(toDate) : null;
+    const allLedgerEntries = JSON.parse(savedLedgerEntries)
+    const journalEntries = JSON.parse(savedJournalEntries)
 
-        if (from && entryDate < from) return false;
-        if (to && entryDate > to) return false;
-        return true;
-      });
+    // Apply date filtering to journal entries
+    const filteredJournalEntries = journalEntries.filter((entry) => {
+      if (!fromDate && !toDate) return true
+      const entryDate = new Date(entry.date)
+      const from = fromDate ? new Date(fromDate) : null
+      const to = toDate ? new Date(toDate) : null
 
-      const flatEntries = filtered.flatMap((entry) =>
-        entry.entries.map((item) => ({
-          account: item.account,
-          type: item.type,
-          amount: parseFloat(item.amount),
-        }))
-      );
+      if (from && entryDate < from) return false
+      if (to && entryDate > to) return false
+      return true
+    })
 
-      const accountMap = {};
+    // Apply date filtering to ledger entries
+    const filteredLedgerEntries = allLedgerEntries.filter((entry) => {
+      if (!fromDate && !toDate) return true
+      const entryDate = new Date(entry.date)
+      const from = fromDate ? new Date(fromDate) : null
+      const to = toDate ? new Date(toDate) : null
 
-      flatEntries.forEach(({ account, type, amount }) => {
-        if (!accountMap[account]) {
-          accountMap[account] = { debit: 0, credit: 0 };
+      if (from && entryDate < from) return false
+      if (to && entryDate > to) return false
+      return true
+    })
+
+    // Convert Journal entries from nested structure to Ledger format
+    filteredJournalEntries.forEach((journalEntry) => {
+      if (journalEntry.entries && Array.isArray(journalEntry.entries)) {
+        journalEntry.entries.forEach((item) => {
+          filteredLedgerEntries.push({
+            date: journalEntry.date,
+            account: item.account,
+            debit: item.type === "Debit" ? item.amount : 0,
+            credit: item.type === "Credit" ? item.amount : 0,
+            type: "Journal",
+          })
+        })
+      } else {
+        // Handle flat structure if it exists
+        filteredLedgerEntries.push({
+          date: journalEntry.date,
+          account: journalEntry.debitAccount,
+          debit: journalEntry.amount,
+          credit: 0,
+          type: "Journal",
+        })
+
+        filteredLedgerEntries.push({
+          date: journalEntry.date,
+          account: journalEntry.creditAccount,
+          debit: 0,
+          credit: journalEntry.amount,
+          type: "Journal",
+        })
+      }
+    })
+
+    // Group entries by account and calculate balances
+    const accountMap = {}
+
+    filteredLedgerEntries.forEach((entry) => {
+      if (!accountMap[entry.account]) {
+        accountMap[entry.account] = {
+          account: entry.account,
+          totalDebits: 0,
+          totalCredits: 0,
+          balance: 0,
+          balanceType: "",
         }
-        if (type === "Debit") {
-          accountMap[account].debit += amount;
-        } else if (type === "Credit") {
-          accountMap[account].credit += amount;
+      }
+
+      accountMap[entry.account].totalDebits += entry.debit
+      accountMap[entry.account].totalCredits += entry.credit
+    })
+
+    // Calculate net balances with proper accounting rules
+    const balances = Object.values(accountMap)
+      .map((account) => {
+        if (account.totalDebits > account.totalCredits) {
+          account.balance = account.totalDebits - account.totalCredits
+          account.balanceType = "Dr"
+        } else if (account.totalCredits > account.totalDebits) {
+          account.balance = account.totalCredits - account.totalDebits
+          account.balanceType = "Cr"
+        } else {
+          account.balance = 0
+          account.balanceType = ""
         }
-      });
 
-      const formatted = Object.entries(accountMap).map(
-        ([account, { debit, credit }]) => {
-          const balance = debit - credit;
-          return {
-            account,
-            debit: balance > 0 ? balance : 0,
-            credit: balance < 0 ? Math.abs(balance) : 0,
-          };
-        }
-      );
+        // Add account type and abnormal balance flag
+        account.accountType = getAccountType(account.account)
+        account.isAbnormal = isAbnormalBalance(account.account, account.balanceType)
 
-      setTrialData(formatted);
-    }
-  }, [fromDate, toDate]);
+        return account
+      })
+      .filter((account) => account.balance > 0) // Only show accounts with balances
 
-  const totalDebit = trialData.reduce((sum, item) => sum + item.debit, 0);
-  const totalCredit = trialData.reduce((sum, item) => sum + item.credit, 0);
+    // Sort accounts alphabetically
+    balances.sort((a, b) => a.account.localeCompare(b.account))
+
+    setAccountBalances(balances)
+
+    // Calculate totals for trial balance
+    const debitTotal = balances
+      .filter((account) => account.balanceType === "Dr")
+      .reduce((sum, account) => sum + account.balance, 0)
+
+    const creditTotal = balances
+      .filter((account) => account.balanceType === "Cr")
+      .reduce((sum, account) => sum + account.balance, 0)
+
+    setTotalDebits(debitTotal)
+    setTotalCredits(creditTotal)
+  }, [fromDate, toDate])
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("Trial Balance", 14, 16);
+    const doc = new jsPDF()
+    doc.setFontSize(16)
+    doc.text("Trial Balance", 14, 16)
+
+    if (fromDate || toDate) {
+      doc.setFontSize(12)
+      doc.text(`Period: ${fromDate || "Beginning"} to ${toDate || "End"}`, 14, 26)
+    }
+
     autoTable(doc, {
-      startY: 20,
+      startY: fromDate || toDate ? 30 : 20,
       head: [["Account", "Debit (৳)", "Credit (৳)"]],
-      body: trialData.map((item) => [
-        item.account,
-        item.debit !== 0 ? item.debit.toFixed(2) : "-",
-        item.credit !== 0 ? item.credit.toFixed(2) : "-",
+      body: accountBalances.map((account) => [
+        account.account,
+        account.balanceType === "Dr" ? account.balance.toFixed(2) : "-",
+        account.balanceType === "Cr" ? account.balance.toFixed(2) : "-",
       ]),
-      foot: [["Total", totalDebit.toFixed(2), totalCredit.toFixed(2)]],
-    });
-    doc.save("trial_balance.pdf");
-  };
+      foot: [["Total", totalDebits.toFixed(2), totalCredits.toFixed(2)]],
+    })
+    doc.save("trial_balance.pdf")
+  }
 
   const exportToExcel = () => {
-    const wb = XLSX.utils.book_new();
+    const wb = XLSX.utils.book_new()
     const wsData = [
       ["Account", "Debit (৳)", "Credit (৳)"],
-      ...trialData.map((item) => [
-        item.account,
-        item.debit !== 0 ? item.debit.toFixed(2) : "-",
-        item.credit !== 0 ? item.credit.toFixed(2) : "-",
+      ...accountBalances.map((account) => [
+        account.account,
+        account.balanceType === "Dr" ? account.balance.toFixed(2) : "-",
+        account.balanceType === "Cr" ? account.balance.toFixed(2) : "-",
       ]),
-      ["Total", totalDebit.toFixed(2), totalCredit.toFixed(2)],
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    XLSX.utils.book_append_sheet(wb, ws, "Trial Balance");
-    XLSX.writeFile(wb, "trial_balance.xlsx");
-  };
+      ["Total", totalDebits.toFixed(2), totalCredits.toFixed(2)],
+    ]
+    const ws = XLSX.utils.aoa_to_sheet(wsData)
+    XLSX.utils.book_append_sheet(wb, ws, "Trial Balance")
+    XLSX.writeFile(wb, "trial_balance.xlsx")
+  }
+
+  const isBalanced = Math.abs(totalDebits - totalCredits) < 0.01
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <h2 className="text-3xl font-bold mb-8 text-center text-gray-800">
-        Trial Balance
-      </h2>
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-8">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">Trial Balance</h1>
 
-      <div className="flex justify-between flex-wrap items-end gap-4 mb-10">
-        <div className="flex gap-4">
-          <div>
-            <label className="text-sm font-medium text-gray-900 block mb-1">
-              From:
-            </label>
-            <input
-              type="date"
-              className="border border-gray-800 rounded px-3 py-1"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-900 block mb-1">
-              To:
-            </label>
-            <input
-              type="date"
-              className="border border-gray-800 rounded px-3 py-1"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="relative inline-block text-left">
-          <button
-            onClick={() => setShowExportMenu((prev) => !prev)}
-            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            <span>Export</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-3 h-3 fill-white"
-              viewBox="0 0 20 20"
-            >
-              <path d="M5.25 7.5l4.25 4.25 4.25-4.25" />
-            </svg>
-          </button>
-
-          {showExportMenu && (
-            <div className="absolute right-0 mt-1 w-30 bg-white border border-gray-200 rounded shadow z-10">
-              <button
-                onClick={() => {
-                  exportToPDF();
-                  setShowExportMenu(false);
-                }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
-              >
-                <span className="text-sm">📄 PDF</span>
-              </button>
-              <button
-                onClick={() => {
-                  exportToExcel();
-                  setShowExportMenu(false);
-                }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
-              >
-                <span className="text-sm">📊 Excel</span>
-              </button>
+        {/* Date Filter and Export Controls */}
+        <div className="flex justify-between flex-wrap items-end gap-4 mb-6">
+          <div className="flex gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-900 block mb-1">From:</label>
+              <input
+                type="date"
+                className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
             </div>
-          )}
+            <div>
+              <label className="text-sm font-medium text-gray-900 block mb-1">To:</label>
+              <input
+                type="date"
+                className="border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="relative inline-block text-left">
+            <button
+              onClick={() => setShowExportMenu((prev) => !prev)}
+              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
+            >
+              <span>Export</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 fill-white" viewBox="0 0 20 20">
+                <path d="M5.25 7.5l4.25 4.25 4.25-4.25" />
+              </svg>
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded shadow-lg z-10">
+                <button
+                  onClick={() => {
+                    exportToPDF()
+                    setShowExportMenu(false)
+                  }}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                >
+                  <span className="text-sm">📄 PDF</span>
+                </button>
+                <button
+                  onClick={() => {
+                    exportToExcel()
+                    setShowExportMenu(false)
+                  }}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                >
+                  <span className="text-sm">📊 Excel</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div className="overflow-x-auto bg-white shadow-md rounded-lg">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-200">
-            <tr>
-              <th className="px-6 py-3 text-left font-medium text-gray-700">
-                Account
-              </th>
-              <th className="px-6 py-3 text-left font-medium text-gray-700">
-                Debit (৳)
-              </th>
-              <th className="px-6 py-3 text-left font-medium text-gray-700">
-                Credit (৳)
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {trialData.map((item, index) => {
-              const name = item.account.toLowerCase();
-              const accountType = name.includes("cash") || name.includes("receivable") || name.includes("asset")
-                ? "Asset"
-                : name.includes("expense")
-                ? "Expense"
-                : name.includes("payable") || name.includes("liability")
-                ? "Liability"
-                : name.includes("revenue") || name.includes("income")
-                ? "Revenue"
-                : name.includes("capital")
-                ? "Capital"
-                : "Unknown";
+        {accountBalances.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 bg-white rounded-lg shadow-md">
+            <div className="text-lg mb-2">No account balances found for the selected period.</div>
+            <div className="text-sm">
+              Try adjusting the date range or create entries using Receipt, Payment, or Journal forms.
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Account Name
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Debit Balance (৳)
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Credit Balance (৳)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {accountBalances.map((account, index) => (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      <td
+                        className={`px-6 py-4 text-sm font-medium ${account.isAbnormal ? "text-red-600" : "text-gray-900"}`}
+                      >
+                        {account.account}
+                      </td>
+                      <td
+                        className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium ${
+                          account.balanceType === "Dr" && account.isAbnormal ? "text-red-600" : "text-gray-900"
+                        }`}
+                      >
+                        {account.balanceType === "Dr" ? `৳ ${account.balance.toFixed(2)}` : "-"}
+                      </td>
+                      <td
+                        className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium ${
+                          account.balanceType === "Cr" && account.isAbnormal ? "text-red-600" : "text-gray-900"
+                        }`}
+                      >
+                        {account.balanceType === "Cr" ? `৳ ${account.balance.toFixed(2)}` : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                  <tr className="text-sm font-bold">
+                    <td className="px-6 py-4 text-left text-gray-700">Total</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-gray-700">৳ {totalDebits.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-gray-700">
+                      ৳ {totalCredits.toFixed(2)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
 
-              const shouldBeDebit = accountType === "Asset" || accountType === "Expense";
-              const shouldBeCredit = accountType === "Liability" || accountType === "Revenue" || accountType === "Capital";
-              const isViolation = (shouldBeDebit && item.credit > 0) || (shouldBeCredit && item.debit > 0);
-              const rowTextColor = isViolation ? "text-red-500 font-semibold" : "text-gray-700";
-
-              return (
-                <tr key={index}>
-                  <td className="px-6 py-4 text-left hover:text-gray-900">
-                    <Link
-                      to={`/ledger/${encodeURIComponent(item.account)}`}
-                      className={rowTextColor}
-                    >
-                      {item.account}
-                    </Link>
-                  </td>
-                  <td className={`px-6 py-4 text-left ${rowTextColor}`}>
-                    {item.debit !== 0 ? item.debit.toFixed(2) : "-"}
-                  </td>
-                  <td className={`px-6 py-4 text-left ${rowTextColor}`}>
-                    {item.credit !== 0 ? item.credit.toFixed(2) : "-"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot className="bg-gray-100 font-semibold">
-            <tr>
-              <td className="px-6 py-3 text-left">Total:</td>
-              <td className={`px-6 py-3 text-left ${totalDebit < 0 ? "text-red-500" : "text-gray-900"}`}>
-                {totalDebit.toFixed(2)}
-              </td>
-              <td className={`px-6 py-3 text-left ${totalCredit < 0 ? "text-red-500" : "text-gray-900"}`}>
-                {totalCredit.toFixed(2)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }

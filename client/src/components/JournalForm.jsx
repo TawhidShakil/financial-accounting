@@ -1,31 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
-const JournalForm = ({ onSave, editData }) => {
-  const defaultAccounts = [
-    "Cash",
-    "Capital",
-    "Inventory",
-    "Sales",
-    "Bank",
-    "Accounts Receivable",
-    "Accounts Payable",
-    "Expenses",
-  ];
-
-  // Load accounts from localStorage if available, else default list
-  const [accountOptions, setAccountOptions] = useState(() => {
-    const saved = localStorage.getItem("accountOptions");
-    return saved ? JSON.parse(saved) : defaultAccounts;
-  });
-
+const JournalForm = ({ onSave, editData, accountOptions, setAccountOptions, accountHierarchy, setAccountHierarchy }) => {
   const [journalDate, setJournalDate] = useState("");
   const [entries, setEntries] = useState([
     { account: "", type: "Debit", amount: "" },
     { account: "", type: "Credit", amount: "" },
   ]);
-
-  const [addingNewAccountIndex, setAddingNewAccountIndex] = useState(null);
-  const [newAccountName, setNewAccountName] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
   // Initialize form with edit data if provided
@@ -41,6 +21,326 @@ const JournalForm = ({ onSave, editData }) => {
       ]);
     }
   }, [editData]);
+
+  // Account Select Component
+  const AccountSelect = ({ value, onChange, index }) => {
+    const [showHierarchy, setShowHierarchy] = useState(false);
+    const [currentCategory, setCurrentCategory] = useState(null);
+    const [currentSubcategory, setCurrentSubcategory] = useState(null);
+    const [newAccountName, setNewAccountName] = useState("");
+    const [isAddingNewAccount, setIsAddingNewAccount] = useState(false);
+    const [newAccountCategory, setNewAccountCategory] = useState(null);
+    const [newAccountSubcategory, setNewAccountSubcategory] = useState(null);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowHierarchy(false);
+        setCurrentCategory(null);
+        setCurrentSubcategory(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+    const handleAccountSelect = (account) => {
+      onChange(account);
+      setShowHierarchy(false);
+      setCurrentCategory(null);
+      setCurrentSubcategory(null);
+    };
+
+    const startAddingNewAccount = (category, subcategory = null) => {
+      setIsAddingNewAccount(true);
+      setNewAccountCategory(category);
+      setNewAccountSubcategory(subcategory);
+      setNewAccountName("");
+      setShowHierarchy(false);
+    };
+
+    const deleteAccount = (account, category, subcategory = null) => {
+      const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy));
+      
+      if (subcategory) {
+        updatedHierarchy[category][subcategory] = updatedHierarchy[category][subcategory]
+          .filter(acc => acc !== account);
+      } else if (Array.isArray(updatedHierarchy[category])) {
+        updatedHierarchy[category] = updatedHierarchy[category]
+          .filter(acc => acc !== account);
+      } else {
+        if (updatedHierarchy[category]?.["Other"]) {
+          updatedHierarchy[category]["Other"] = updatedHierarchy[category]["Other"]
+            .filter(acc => acc !== account);
+        }
+      }
+
+      setAccountHierarchy(updatedHierarchy);
+      
+      const updatedAccounts = accountOptions.filter(acc => acc !== account);
+      setAccountOptions(updatedAccounts);
+      
+      // Clear the selection if the deleted account was selected
+      if (value === account) {
+        onChange("");
+      }
+    };
+
+    const getAllAccountsFromHierarchy = (hierarchy) => {
+      let accounts = [];
+      for (const category in hierarchy) {
+        if (Array.isArray(hierarchy[category])) {
+          accounts = [...accounts, ...hierarchy[category]];
+        } else {
+          for (const subcategory in hierarchy[category]) {
+            accounts = [...accounts, ...hierarchy[category][subcategory]];
+          }
+        }
+      }
+      return accounts;
+    };
+
+    const saveNewAccount = () => {
+      try {
+        const trimmedName = newAccountName.trim();
+        
+        if (!trimmedName) {
+          alert("Please enter an account name");
+          return;
+        }
+
+        // Check for existing account
+        const allAccounts = getAllAccountsFromHierarchy(accountHierarchy);
+        if (allAccounts.includes(trimmedName)) {
+          alert("Account name already exists");
+          return;
+        }
+
+        // Create a deep copy of the hierarchy
+        const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy));
+        
+        // Add to the hierarchy
+        if (newAccountSubcategory) {
+          if (!updatedHierarchy[newAccountCategory]?.[newAccountSubcategory]) {
+            updatedHierarchy[newAccountCategory][newAccountSubcategory] = [];
+          }
+          updatedHierarchy[newAccountCategory][newAccountSubcategory].push(trimmedName);
+        } else if (Array.isArray(updatedHierarchy[newAccountCategory])) {
+          updatedHierarchy[newAccountCategory].push(trimmedName);
+        } else {
+          if (!updatedHierarchy[newAccountCategory]) {
+            updatedHierarchy[newAccountCategory] = { "Other": [] };
+          } else if (!updatedHierarchy[newAccountCategory]["Other"]) {
+            updatedHierarchy[newAccountCategory]["Other"] = [];
+          }
+          updatedHierarchy[newAccountCategory]["Other"].push(trimmedName);
+        }
+
+        // Update states
+        setAccountHierarchy(updatedHierarchy);
+        
+        const updatedAccounts = [...new Set([...accountOptions, trimmedName])];
+        setAccountOptions(updatedAccounts);
+        
+        // Select the new account and reset state
+        onChange(trimmedName);
+        setIsAddingNewAccount(false);
+        setNewAccountName("");
+      } catch (error) {
+        console.error("Error saving new account:", error);
+        alert("An error occurred while saving the new account");
+      }
+    };
+
+    const renderCategoryOptions = () => (
+      <>
+        <div className="font-semibold mb-2 text-gray-700">Main Categories</div>
+        {Object.keys(accountHierarchy).map((category) => (
+          <div
+            key={category}
+            onClick={() => setCurrentCategory(category)}
+            className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+          >
+            <span>{category}</span>
+            <span className="text-gray-500">→</span>
+          </div>
+        ))}
+      </>
+    );
+
+    const renderSubcategoryOptions = () => (
+      <>
+        <div
+          onClick={() => setCurrentCategory(null)}
+          className="p-2 border border-transparent hover:border-blue-400 cursor-pointer flex items-center text-blue-600 rounded-md transition-colors duration-200"
+        >
+          ← Back to Categories
+        </div>
+        <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-black-150 text-center">
+          {currentCategory}
+        </div>
+
+        {Array.isArray(accountHierarchy[currentCategory]) ? (
+          <>
+            {accountHierarchy[currentCategory].map((account) => (
+              <div
+                key={account}
+                className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+              >
+                <span 
+                  onClick={() => handleAccountSelect(account)}
+                  className="flex-grow"
+                >
+                  {account}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteAccount(account, currentCategory);
+                  }}
+                  className="text-red-500 hover:text-red-700 ml-2"
+                  title="Delete account"
+                >
+                  −
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                startAddingNewAccount(currentCategory);
+              }}
+              className="p-2 hover:bg-gray-100 cursor-pointer text-blue-600 font-semibold w-full text-left"
+            >
+              + Add New Account
+            </button>
+          </>
+        ) : (
+          Object.keys(accountHierarchy[currentCategory]).map((subcategory) => (
+            <div
+              key={subcategory}
+              onClick={() => setCurrentSubcategory(subcategory)}
+              className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+            >
+              <span>{subcategory}</span>
+              <span className="text-gray-500">→</span>
+            </div>
+          ))
+        )}
+      </>
+    );
+
+    const renderAccountOptions = () => {
+      const accounts = accountHierarchy[currentCategory][currentSubcategory];
+
+      return (
+        <>
+          <div
+            onClick={() => setCurrentSubcategory(null)}
+            className="p-2 border border-transparent hover:border-blue-400 cursor-pointer flex items-center text-blue-600 rounded-md transition-colors duration-200"
+          >
+            ← Back to {currentCategory}
+          </div>
+          <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-black-150 text-center">
+            {currentSubcategory}
+          </div>
+
+          {accounts.map((account) => (
+            <div
+              key={account}
+              className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+            >
+              <span 
+                onClick={() => handleAccountSelect(account)}
+                className="flex-grow"
+              >
+                {account}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteAccount(account, currentCategory, currentSubcategory);
+                }}
+                className="text-red-500 hover:text-red-700 ml-2"
+                title="Delete account"
+              >
+                −
+              </button>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              startAddingNewAccount(currentCategory, currentSubcategory);
+            }}
+            className="p-2 hover:bg-gray-100 cursor-pointer text-blue-600 font-semibold w-full text-left"
+          >
+            + Add New Account
+          </button>
+        </>
+      );
+    };
+
+    return (
+      <div className="relative" ref={dropdownRef}>
+        <div
+          onClick={() => setShowHierarchy(!showHierarchy)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer"
+        >
+          {value || "Select Account"}
+        </div>
+
+        {showHierarchy && !isAddingNewAccount && (
+          <div 
+            className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-2">
+              {!currentCategory
+                ? renderCategoryOptions()
+                : !currentSubcategory
+                ? renderSubcategoryOptions()
+                : renderAccountOptions()}
+            </div>
+          </div>
+        )}
+
+        {isAddingNewAccount && (
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              type="text"
+              value={newAccountName}
+              onChange={(e) => setNewAccountName(e.target.value)}
+              placeholder="Enter new account name"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={saveNewAccount}
+              className="px-4 py-2 border border-green-300 text-green-700 bg-green-50 shadow-sm rounded-md hover:bg-green-100 transition"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAddingNewAccount(false)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 bg-gray-50 shadow-sm rounded-md hover:bg-gray-100 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const addRow = () => {
     setEntries([...entries, { account: "", type: "Debit", amount: "" }]);
@@ -65,13 +365,11 @@ const JournalForm = ({ onSave, editData }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Basic validation
     if (!journalDate) {
       alert("Please select a journal date");
       return;
     }
 
-    // Check all fields are filled
     for (let entry of entries) {
       if (!entry.account || !entry.amount) {
         alert("Please fill all account fields and amounts");
@@ -79,7 +377,6 @@ const JournalForm = ({ onSave, editData }) => {
       }
     }
 
-    // Validate amounts are positive numbers
     for (let entry of entries) {
       if (isNaN(entry.amount)) {
         alert("Amount must be a number");
@@ -91,7 +388,6 @@ const JournalForm = ({ onSave, editData }) => {
       }
     }
 
-    // Validate that total debits equal total credits
     const totalDebit = entries
       .filter((entry) => entry.type === "Debit")
       .reduce((sum, entry) => sum + parseFloat(entry.amount), 0);
@@ -115,18 +411,20 @@ const JournalForm = ({ onSave, editData }) => {
       })),
     };
 
-     // API CALL - Save journal entry (create or update)
     if (onSave) {
       onSave(newEntry);
     }
 
-    setSuccessMessage(editData ? "Journal entry updated successfully!" : "Journal entry created successfully!");
+    setSuccessMessage(
+      editData
+        ? "Journal entry updated successfully!"
+        : "Journal entry created successfully!"
+    );
 
     setTimeout(() => {
       setSuccessMessage("");
     }, 3000);
 
-    // Reset form only if not in edit mode
     if (!editData) {
       setJournalDate("");
       setEntries([
@@ -151,7 +449,6 @@ const JournalForm = ({ onSave, editData }) => {
         </div>
       )}
 
-      {/* Journal Date */}
       <div className="flex justify-center mb-8">
         <div className="flex items-center gap-8">
           <label className="text-sm font-medium text-gray-700">
@@ -167,7 +464,6 @@ const JournalForm = ({ onSave, editData }) => {
         </div>
       </div>
 
-      {/* Headers */}
       <div className="grid grid-cols-12 gap-2 mb-2 text-sm font-medium text-gray-700">
         <div className="col-span-5 text-center">Account</div>
         <div className="col-span-3 text-center">Type</div>
@@ -175,86 +471,16 @@ const JournalForm = ({ onSave, editData }) => {
         <div className="col-span-1 text-right">Action</div>
       </div>
 
-      {/* Entry Rows */}
       {entries.map((entry, index) => (
         <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-center">
-          {/* Account Select/Input */}
           <div className="col-span-5">
-            {addingNewAccountIndex === index ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newAccountName}
-                  onChange={(e) => setNewAccountName(e.target.value)}
-                  placeholder="Enter new account"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const trimmed = newAccountName.trim();
-                    if (
-                      trimmed &&
-                      !accountOptions.includes(trimmed)
-                    ) {
-                      const updatedAccounts = [...accountOptions, trimmed];
-                      setAccountOptions(updatedAccounts);
-                      // Save updated accounts list in localStorage for persistence
-                      localStorage.setItem(
-                        "accountOptions",
-                        JSON.stringify(updatedAccounts)
-                      );
-                      handleChange(index, "account", trimmed);
-                    }
-                    setNewAccountName("");
-                    setAddingNewAccountIndex(null);
-                  }}
-                  className="px-4 py-2 border border-green-300 text-green-700 bg-green-50 shadow-sm rounded-md hover:bg-green-100 transition"
-                >
-                  Add
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewAccountName("");
-                    setAddingNewAccountIndex(null);
-                  }}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 bg-gray-50 shadow-sm rounded-md hover:bg-gray-100 transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <select
-                value={entry.account}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === "__add__") {
-                    setAddingNewAccountIndex(index);
-                  } else {
-                    handleChange(index, "account", value);
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-                required
-              >
-                <option value="" disabled hidden>
-                  Select Account
-                </option>
-                {accountOptions.map((acc) => (
-                  <option key={acc} value={acc}>
-                    {acc}
-                  </option>
-                ))}
-                <option value="__add__" className="text-blue-600 font-semibold">
-                  {" "}
-                  ➕ Add New Account
-                </option>
-              </select>
-            )}
+            <AccountSelect
+              value={entry.account}
+              onChange={(value) => handleChange(index, "account", value)}
+              index={index}
+            />
           </div>
 
-          {/* Type Select */}
           <div className="col-span-3">
             <select
               value={entry.type}
@@ -270,7 +496,6 @@ const JournalForm = ({ onSave, editData }) => {
             </select>
           </div>
 
-          {/* Amount Input */}
           <div className="col-span-3">
             <input
               type="number"
@@ -284,7 +509,6 @@ const JournalForm = ({ onSave, editData }) => {
             />
           </div>
 
-          {/* Remove Button */}
           <div className="col-span-1 flex justify-end">
             <button
               type="button"
@@ -299,7 +523,6 @@ const JournalForm = ({ onSave, editData }) => {
         </div>
       ))}
 
-      {/* Add Row */}
       <button
         type="button"
         onClick={addRow}
@@ -308,7 +531,6 @@ const JournalForm = ({ onSave, editData }) => {
         <span className="mr-1">+</span>Add Account
       </button>
 
-      {/* Buttons */}
       <div className="flex justify-end gap-3">
         <button
           type="button"
@@ -326,7 +548,6 @@ const JournalForm = ({ onSave, editData }) => {
         </button>
         <button
           type="submit"
-          
           className="px-4 py-2 border border-green-300 text-green-700 bg-green-50 shadow-sm rounded-md hover:bg-green-100 transition"
         >
           {editData ? "Update Journal Entry →" : "Create Journal Entry →"}
