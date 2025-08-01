@@ -1,10 +1,18 @@
 import { useState, useEffect } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 
 export default function Ledger() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [entries, setEntries] = useState([])
   const [filteredEntries, setFilteredEntries] = useState([])
   const [selectedAccount, setSelectedAccount] = useState("")
   const [accounts, setAccounts] = useState([])
+
+  // Helper function to get URL search params
+  const getSearchParams = () => {
+    return new URLSearchParams(location.search)
+  }
 
   useEffect(() => {
     // Read all entries from localStorage
@@ -62,7 +70,22 @@ export default function Ledger() {
     // Extract unique accounts for filter dropdown
     const uniqueAccounts = [...new Set(allLedgerEntries.map((entry) => entry.account))].sort()
     setAccounts(uniqueAccounts)
-  }, [])
+
+    // Check for URL parameter and set selected account
+    const searchParams = getSearchParams()
+    const accountParam = searchParams.get("account")
+    if (accountParam) {
+      const decodedAccount = decodeURIComponent(accountParam)
+      // Verify the account exists in our data
+      if (uniqueAccounts.includes(decodedAccount)) {
+        setSelectedAccount(decodedAccount)
+      } else {
+        console.warn(`Account "${decodedAccount}" not found in ledger data`)
+        // Remove invalid account parameter from URL
+        navigate("/ledger", { replace: true })
+      }
+    }
+  }, [location.search, navigate])
 
   // Filter entries by selected account
   useEffect(() => {
@@ -73,6 +96,19 @@ export default function Ledger() {
       setFilteredEntries(entries)
     }
   }, [selectedAccount, entries])
+
+  // Handle account selection change
+  const handleAccountChange = (accountName) => {
+    setSelectedAccount(accountName)
+
+    // Update URL parameter
+    if (accountName) {
+      const encodedAccount = encodeURIComponent(accountName)
+      navigate(`/ledger?account=${encodedAccount}`)
+    } else {
+      navigate("/ledger")
+    }
+  }
 
   // Calculate running balance with proper accounting rules
   const entriesWithBalance = filteredEntries.map((entry, index) => {
@@ -143,7 +179,7 @@ export default function Ledger() {
 
       // Reset filter if deleted account was selected and no longer exists
       if (selectedAccount && !uniqueAccounts.includes(selectedAccount)) {
-        setSelectedAccount("")
+        handleAccountChange("")
       }
     }
   }
@@ -168,7 +204,7 @@ export default function Ledger() {
             <label className="text-sm font-medium text-gray-700">Filter by Account:</label>
             <select
               value={selectedAccount}
-              onChange={(e) => setSelectedAccount(e.target.value)}
+              onChange={(e) => handleAccountChange(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
               <option value="">All Accounts</option>
@@ -178,6 +214,15 @@ export default function Ledger() {
                 </option>
               ))}
             </select>
+            {selectedAccount && (
+              <button
+                onClick={() => handleAccountChange("")}
+                className="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
+                title="Clear account filter"
+              >
+                Clear Filter
+              </button>
+            )}
           </div>
         </div>
 
@@ -194,7 +239,7 @@ export default function Ledger() {
             </div>
           </div>
         ) : selectedAccount ? (
-          // Single Account View
+          // Single Account View (when account is selected)
           <div className="bg-white shadow-md rounded-lg overflow-hidden">
             <div className="bg-gray-200 px-6 py-4 border-b border-gray-300">
               <h3 className="text-xl font-semibold text-gray-800">{selectedAccount}</h3>
@@ -220,14 +265,14 @@ export default function Ledger() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {entriesWithBalance.map((entry, index) => (
                     <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.date}</td>
-                      <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                      <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-800">{entry.date}</td>
+                      <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-800">
                         {entry.debit > 0 ? `৳ ${entry.debit.toFixed(2)}` : "-"}
                       </td>
-                      <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                      <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-800">
                         {entry.credit > 0 ? `৳ ${entry.credit.toFixed(2)}` : "-"}
                       </td>
-                      <td className="w-40 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-600">
+                      <td className="w-40 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-700">
                         {entry.balance > 0 ? `৳ ${entry.balance.toFixed(2)} ${entry.balanceType}` : "৳ 0.00"}
                       </td>
                     </tr>
@@ -253,73 +298,121 @@ export default function Ledger() {
             </div>
           </div>
         ) : (
-          // All Accounts Summary View
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 table-fixed">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="w-32 px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="w-48 px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Account
-                    </th>
-                    <th className="w-32 px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Debit (৳)
-                    </th>
-                    <th className="w-32 px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Credit (৳)
-                    </th>
-                    <th className="w-40 px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Balance (৳)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {entriesWithBalance.map((entry, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.date}</td>
-                      <td className="w-48 px-4 sm:px-6 py-4 text-sm font-medium text-gray-900">
-                        <div className="truncate" title={entry.account}>
-                          {entry.account}
-                        </div>
-                      </td>
-                      <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                        {entry.debit > 0 ? `৳ ${entry.debit.toFixed(2)}` : "-"}
-                      </td>
-                      <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                        {entry.credit > 0 ? `৳ ${entry.credit.toFixed(2)}` : "-"}
-                      </td>
-                      <td className="w-40 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-600">
-                        {entry.balance > 0 ? `৳ ${entry.balance.toFixed(2)} ${entry.balanceType}` : "৳ 0.00"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-50 border-t border-gray-200">
-                  <tr className="text-sm font-bold">
-                    <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-left text-gray-700">
-                      Total: {filteredEntries.length}
-                    </td>
-                    <td className="w-48 px-4 sm:px-6 py-4"></td>
-                    <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-right text-gray-700">
-                      ৳ {totalDebit.toFixed(2)}
-                    </td>
-                    <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-right text-gray-700">
-                      ৳ {totalCredit.toFixed(2)}
-                    </td>
-                    <td className="w-40 px-4 sm:px-6 py-4 whitespace-nowrap text-right font-bold text-gray-600">
-                      {netBalance > 0 ? `৳ ${netBalance.toFixed(2)} ${netBalanceType}` : "৳ 0.00"}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+          // All Accounts Grouped View (default when no account selected)
+          <div className="space-y-8">
+            {Object.keys(groupedByAccount)
+              .sort()
+              .map((accountName) => {
+                const accountEntries = groupedByAccount[accountName]
+
+                // Calculate running balance for this account
+                const accountEntriesWithBalance = accountEntries.map((entry, index) => {
+                  const previousEntries = accountEntries.slice(0, index + 1)
+                  const totalDebits = previousEntries.reduce((sum, e) => sum + e.debit, 0)
+                  const totalCredits = previousEntries.reduce((sum, e) => sum + e.credit, 0)
+
+                  let balance = 0
+                  let balanceType = ""
+
+                  if (totalDebits > totalCredits) {
+                    balance = totalDebits - totalCredits
+                    balanceType = "Dr"
+                  } else if (totalCredits > totalDebits) {
+                    balance = totalCredits - totalDebits
+                    balanceType = "Cr"
+                  } else {
+                    balance = 0
+                    balanceType = ""
+                  }
+
+                  return { ...entry, balance, balanceType }
+                })
+
+                const accountTotalDebit = accountEntries.reduce((sum, entry) => sum + entry.debit, 0)
+                const accountTotalCredit = accountEntries.reduce((sum, entry) => sum + entry.credit, 0)
+
+                // Calculate net balance for this account
+                let accountNetBalance = 0
+                let accountNetBalanceType = ""
+
+                if (accountTotalDebit > accountTotalCredit) {
+                  accountNetBalance = accountTotalDebit - accountTotalCredit
+                  accountNetBalanceType = "Dr"
+                } else if (accountTotalCredit > accountTotalDebit) {
+                  accountNetBalance = accountTotalCredit - accountTotalDebit
+                  accountNetBalanceType = "Cr"
+                } else {
+                  accountNetBalance = 0
+                  accountNetBalanceType = ""
+                }
+
+                return (
+                  <div key={accountName} className="bg-white shadow-md rounded-lg overflow-hidden">
+                    <div className="bg-gray-200 px-6 py-4 border-b border-gray-300">
+                      <h3 className="text-xl font-semibold text-gray-800">{accountName}</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="w-32 px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="w-32 px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Debit (৳)
+                            </th>
+                            <th className="w-32 px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Credit (৳)
+                            </th>
+                            <th className="w-40 px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Balance (৳)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {accountEntriesWithBalance.map((entry, index) => (
+                            <tr key={index} className="hover:bg-gray-50 transition-colors">
+                              <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+                                {entry.date}
+                              </td>
+                              <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-800">
+                                {entry.debit > 0 ? `৳ ${entry.debit.toFixed(2)}` : "-"}
+                              </td>
+                              <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-800">
+                                {entry.credit > 0 ? `৳ ${entry.credit.toFixed(2)}` : "-"}
+                              </td>
+                              <td className="w-40 px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-700">
+                                {entry.balance > 0 ? `৳ ${entry.balance.toFixed(2)} ${entry.balanceType}` : "৳ 0.00"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-gray-50 border-t border-gray-200">
+                          <tr className="text-sm font-bold">
+                            <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-left text-gray-700">
+                              Total: {accountEntries.length}
+                            </td>
+                            <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-right text-gray-700">
+                              ৳ {accountTotalDebit.toFixed(2)}
+                            </td>
+                            <td className="w-32 px-4 sm:px-6 py-4 whitespace-nowrap text-right text-gray-700">
+                              ৳ {accountTotalCredit.toFixed(2)}
+                            </td>
+                            <td className="w-40 px-4 sm:px-6 py-4 whitespace-nowrap text-right font-bold text-gray-700">
+                              {accountNetBalance > 0
+                                ? `৳ ${accountNetBalance.toFixed(2)} ${accountNetBalanceType}`
+                                : "৳ 0.00"}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )
+              })}
           </div>
         )}
       </div>
     </div>
   )
 }
-
