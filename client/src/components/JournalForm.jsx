@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { useState, useEffect, useRef } from "react"
+import { ChevronDownIcon } from "@heroicons/react/24/outline"
 
 const JournalForm = ({
   onSave,
@@ -8,191 +8,243 @@ const JournalForm = ({
   setAccountOptions,
   accountHierarchy,
   setAccountHierarchy,
+  // Remove ledgerData prop since we read from localStorage
 }) => {
-  const [journalDate, setJournalDate] = useState("");
+  const [journalDate, setJournalDate] = useState("")
   const [entries, setEntries] = useState([
-    { account: "", type: "Debit", amount: "" },
-    { account: "", type: "Credit", amount: "" },
-  ]);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [description, setDescription] = useState("");
+    { account: "", type: "Debit", amount: "", openingBalance: 0 },
+    { account: "", type: "Credit", amount: "", openingBalance: 0 },
+  ])
+  const [successMessage, setSuccessMessage] = useState("")
+  const [description, setDescription] = useState("")
 
   // Refs for focus management
-  const dateInputRef = useRef(null);
-  const accountSelectRefs = useRef([]);
-  const typeSelectRefs = useRef([]);
-  const amountInputRefs = useRef([]);
-  const descriptionInputRef = useRef(null);
-  const formRef = useRef(null);
+  const dateInputRef = useRef(null)
+  const accountSelectRefs = useRef([])
+  const typeSelectRefs = useRef([])
+  const amountInputRefs = useRef([])
+  const descriptionInputRef = useRef(null)
+  const formRef = useRef(null)
+
+  // Function to calculate opening balance for an account
+  const calculateOpeningBalance = (accountName) => {
+    if (!accountName) {
+      return 0
+    }
+
+    // Read ledger entries from localStorage (same as your Ledger component)
+    const savedLedgerEntries = localStorage.getItem("ledgerEntries") || "[]"
+    const savedJournalEntries = localStorage.getItem("journalEntries") || "[]"
+    const allLedgerEntries = JSON.parse(savedLedgerEntries)
+    const journalEntries = JSON.parse(savedJournalEntries)
+
+    // Convert Journal entries from nested structure to Ledger format (same logic as Ledger component)
+    journalEntries.forEach((journalEntry) => {
+      if (journalEntry.entries && Array.isArray(journalEntry.entries)) {
+        journalEntry.entries.forEach((item) => {
+          allLedgerEntries.push({
+            date: journalEntry.date,
+            account: item.account,
+            debit: item.type === "Debit" ? item.amount : 0,
+            credit: item.type === "Credit" ? item.amount : 0,
+            type: "Journal",
+            reference: `Journal-${journalEntry.date}-${item.account}`,
+          })
+        })
+      } else {
+        // Handle flat structure if it exists
+        allLedgerEntries.push({
+          date: journalEntry.date,
+          account: journalEntry.debitAccount,
+          debit: journalEntry.amount,
+          credit: 0,
+          type: "Journal",
+          reference: `Journal-${journalEntry.date}-${journalEntry.debitAccount}`,
+        })
+        allLedgerEntries.push({
+          date: journalEntry.date,
+          account: journalEntry.creditAccount,
+          debit: 0,
+          credit: journalEntry.amount,
+          type: "Journal",
+          reference: `Journal-${journalEntry.date}-${journalEntry.creditAccount}`,
+        })
+      }
+    })
+
+    // Filter entries for the specific account
+    const accountEntries = allLedgerEntries.filter((entry) => entry.account === accountName)
+
+    if (accountEntries.length === 0) {
+      return 0
+    }
+
+    // Sort entries by date (same as Ledger component)
+    accountEntries.sort((a, b) => new Date(a.date) - new Date(b.date))
+
+    // Calculate balance using same logic as Ledger component
+    const totalDebits = accountEntries.reduce((sum, entry) => sum + (entry.debit || 0), 0)
+    const totalCredits = accountEntries.reduce((sum, entry) => sum + (entry.credit || 0), 0)
+
+    // Return net balance (positive for debit balance, negative for credit balance)
+    return totalDebits - totalCredits
+  }
 
   // Initialize refs arrays
   useEffect(() => {
-    accountSelectRefs.current = accountSelectRefs.current.slice(
-      0,
-      entries.length
-    );
-    typeSelectRefs.current = typeSelectRefs.current.slice(0, entries.length);
-    amountInputRefs.current = amountInputRefs.current.slice(0, entries.length);
-  }, [entries]);
+    accountSelectRefs.current = accountSelectRefs.current.slice(0, entries.length)
+    typeSelectRefs.current = typeSelectRefs.current.slice(0, entries.length)
+    amountInputRefs.current = amountInputRefs.current.slice(0, entries.length)
+  }, [entries])
 
   // Initialize form with edit data if provided
   useEffect(() => {
     if (editData) {
-      setJournalDate(editData.date);
-      setDescription(editData.description || "");
-      setEntries(editData.entries);
+      setJournalDate(editData.date)
+      setDescription(editData.description || "")
+      const entriesWithBalance = editData.entries.map((entry) => ({
+        ...entry,
+        openingBalance: calculateOpeningBalance(entry.account),
+      }))
+      setEntries(entriesWithBalance)
     } else {
-      setJournalDate("");
-      setDescription("");
+      setJournalDate("")
+      setDescription("")
       setEntries([
-        { account: "", type: "Debit", amount: "" },
-        { account: "", type: "Credit", amount: "" },
-      ]);
+        { account: "", type: "Debit", amount: "", openingBalance: 0 },
+        { account: "", type: "Credit", amount: "", openingBalance: 0 },
+      ])
     }
-  }, [editData]);
+  }, [editData]) // Remove ledgerData dependency
 
   // Handle Enter key navigation
   const handleKeyDown = (e, index, fieldType) => {
     if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-
+      e.preventDefault()
       if (fieldType === "date") {
         if (accountSelectRefs.current[0]) {
-          accountSelectRefs.current[0].focus();
+          accountSelectRefs.current[0].focus()
         }
       } else if (fieldType === "account") {
-        typeSelectRefs.current[index]?.focus();
+        typeSelectRefs.current[index]?.focus()
       } else if (fieldType === "type") {
-        amountInputRefs.current[index]?.focus();
+        amountInputRefs.current[index]?.focus()
       } else if (fieldType === "amount") {
         if (index < entries.length - 1) {
-          accountSelectRefs.current[index + 1]?.focus();
+          accountSelectRefs.current[index + 1]?.focus()
         } else {
-          descriptionInputRef.current?.focus();
+          descriptionInputRef.current?.focus()
         }
       } else if (fieldType === "description") {
-        handleSubmit({ preventDefault: () => {} });
+        handleSubmit({ preventDefault: () => {} })
       }
     }
-  };
+  }
 
   // Custom hook for click outside detection
   function useClickOutside(refs, callback) {
     useEffect(() => {
       const handleClickOutside = (event) => {
-        if (
-          refs.every(
-            (ref) => ref.current && !ref.current.contains(event.target)
-          )
-        ) {
-          callback();
+        if (refs.every((ref) => ref.current && !ref.current.contains(event.target))) {
+          callback()
         }
-      };
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("touchstart", handleClickOutside);
+      }
+      document.addEventListener("mousedown", handleClickOutside)
+      document.addEventListener("touchstart", handleClickOutside)
       return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-        document.removeEventListener("touchstart", handleClickOutside);
-      };
-    }, [refs, callback]);
+        document.removeEventListener("mousedown", handleClickOutside)
+        document.removeEventListener("touchstart", handleClickOutside)
+      }
+    }, [refs, callback])
   }
 
   // Type Select Component with Enhanced Navigation
   const TypeSelect = ({ value, onChange, index }) => {
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [selectedIndex, setSelectedIndex] = useState(-1);
-    const [enterPressed, setEnterPressed] = useState(false);
-    const dropdownRef = useRef(null);
-    const triggerRef = useRef(null);
-    const options = ["Debit", "Credit"];
+    const [showDropdown, setShowDropdown] = useState(false)
+    const [selectedIndex, setSelectedIndex] = useState(-1)
+    const [enterPressed, setEnterPressed] = useState(false)
+    const dropdownRef = useRef(null)
+    const triggerRef = useRef(null)
+    const options = ["Debit", "Credit"]
 
     // Close when clicking outside
     useClickOutside([triggerRef, dropdownRef], () => {
-      setShowDropdown(false);
-      setSelectedIndex(-1);
-    });
+      setShowDropdown(false)
+      setSelectedIndex(-1)
+    })
 
     useEffect(() => {
       const handleKeyDown = (e) => {
         if (e.key === "Escape") {
-          setShowDropdown(false);
-          setSelectedIndex(-1);
-          triggerRef.current?.focus();
+          setShowDropdown(false)
+          setSelectedIndex(-1)
+          triggerRef.current?.focus()
         }
-      };
-      document.addEventListener("keydown", handleKeyDown);
-      return () => document.removeEventListener("keydown", handleKeyDown);
-    }, []);
+      }
+      document.addEventListener("keydown", handleKeyDown)
+      return () => document.removeEventListener("keydown", handleKeyDown)
+    }, [])
 
     // Handle keyboard navigation in dropdown
     const handleDropdownKeyDown = (e) => {
       if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
-
+        e.preventDefault()
+        e.stopPropagation()
         if (showDropdown) {
-        // If dropdown is open and Enter is pressed
-        if (selectedIndex >= 0) {
-          onChange(options[selectedIndex]);
-          setShowDropdown(false);
-          setTimeout(() => {
-            amountInputRefs.current[index]?.focus();
-          }, 0);
+          // If dropdown is open and Enter is pressed
+          if (selectedIndex >= 0) {
+            onChange(options[selectedIndex])
+            setShowDropdown(false)
+            setTimeout(() => {
+              amountInputRefs.current[index]?.focus()
+            }, 0)
+          }
+        } else {
+          // If dropdown is closed and Enter is pressed
+          setShowDropdown(true)
+          setSelectedIndex(options.indexOf(value) >= 0 ? options.indexOf(value) : 0)
         }
-      } else {
-        // If dropdown is closed and Enter is pressed
-        setShowDropdown(true);
-        setSelectedIndex(options.indexOf(value) >= 0 ? options.indexOf(value) : 0);
+        return
       }
-      return;
-    }
 
-      if (!showDropdown) return;
+      if (!showDropdown) return
 
       if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % options.length);
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev + 1) % options.length)
       } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex(
-          (prev) => (prev - 1 + options.length) % options.length
-        );
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev - 1 + options.length) % options.length)
       }
-    };
+    }
 
     const handleOptionSelect = (option) => {
-      onChange(option);
-      setShowDropdown(false);
-      setSelectedIndex(-1);
+      onChange(option)
+      setShowDropdown(false)
+      setSelectedIndex(-1)
       // Auto-focus to amount field
       setTimeout(() => {
-        amountInputRefs.current[index]?.focus();
-      }, 0);
-    };
+        amountInputRefs.current[index]?.focus()
+      }, 0)
+    }
 
     return (
       <div className="relative" tabIndex={0} onKeyDown={handleDropdownKeyDown}>
         <div
           ref={triggerRef}
           onClick={() => {
-            setShowDropdown(!showDropdown);
+            setShowDropdown(!showDropdown)
             if (!showDropdown) {
-              setSelectedIndex(
-                options.indexOf(value) >= 0 ? options.indexOf(value) : 0
-              );
+              setSelectedIndex(options.indexOf(value) >= 0 ? options.indexOf(value) : 0)
             }
           }}
           className={`w-full p-2 border rounded-md cursor-pointer flex justify-between items-center focus:ring-2 focus:ring-blue-500 focus:outline-none ${
-            value === "Debit"
-              ? "border-green-300 bg-green-50"
-              : "border-red-300 bg-red-50"
+            value === "Debit" ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50"
           }`}
         >
           <span>{value}</span>
           <ChevronDownIcon
-            className={`h-4 w-4 text-gray-500 transition-transform ${
-              showDropdown ? "transform rotate-180" : ""
-            }`}
+            className={`h-4 w-4 text-gray-500 transition-transform ${showDropdown ? "transform rotate-180" : ""}`}
           />
         </div>
         {showDropdown && (
@@ -214,261 +266,247 @@ const JournalForm = ({
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // Account Select Component
   const AccountSelect = ({ value, onChange, index }) => {
-    const [showHierarchy, setShowHierarchy] = useState(false);
-    const [currentCategory, setCurrentCategory] = useState(null);
-    const [currentSubcategory, setCurrentSubcategory] = useState(null);
-    const [newAccountName, setNewAccountName] = useState("");
-    const [isAddingNewAccount, setIsAddingNewAccount] = useState(false);
-    const [newAccountCategory, setNewAccountCategory] = useState(null);
-    const [newAccountSubcategory, setNewAccountSubcategory] = useState(null);
-    const [selectedIndex, setSelectedIndex] = useState(-1);
-    const [doubleEnterCount, setDoubleEnterCount] = useState(0);
-    const dropdownRef = useRef(null);
-    const triggerRef = useRef(null);
-    const newAccountInputRef = useRef(null);
+    const [showHierarchy, setShowHierarchy] = useState(false)
+    const [currentCategory, setCurrentCategory] = useState(null)
+    const [currentSubcategory, setCurrentSubcategory] = useState(null)
+    const [newAccountName, setNewAccountName] = useState("")
+    const [isAddingNewAccount, setIsAddingNewAccount] = useState(false)
+    const [newAccountCategory, setNewAccountCategory] = useState(null)
+    const [newAccountSubcategory, setNewAccountSubcategory] = useState(null)
+    const [selectedIndex, setSelectedIndex] = useState(-1)
+    const [doubleEnterCount, setDoubleEnterCount] = useState(0)
+    const dropdownRef = useRef(null)
+    const triggerRef = useRef(null)
+    const newAccountInputRef = useRef(null)
 
     // Close when clicking outside
     useClickOutside([triggerRef, dropdownRef], () => {
-      setShowHierarchy(false);
-      setCurrentCategory(null);
-      setCurrentSubcategory(null);
-      setSelectedIndex(-1);
-    });
+      setShowHierarchy(false)
+      setCurrentCategory(null)
+      setCurrentSubcategory(null)
+      setSelectedIndex(-1)
+    })
 
     useEffect(() => {
       const handleKeyDown = (e) => {
         if (e.key === "Escape") {
-          setShowHierarchy(false);
-          setCurrentCategory(null);
-          setCurrentSubcategory(null);
-          setSelectedIndex(-1);
-          triggerRef.current?.focus();
+          setShowHierarchy(false)
+          setCurrentCategory(null)
+          setCurrentSubcategory(null)
+          setSelectedIndex(-1)
+          triggerRef.current?.focus()
         }
-      };
-      document.addEventListener("keydown", handleKeyDown);
-      return () => document.removeEventListener("keydown", handleKeyDown);
-    }, []);
+      }
+      document.addEventListener("keydown", handleKeyDown)
+      return () => document.removeEventListener("keydown", handleKeyDown)
+    }, [])
 
     // Handle keyboard navigation in dropdown
     const handleDropdownKeyDown = (e) => {
       if (!showHierarchy) {
         if (e.key === "Enter") {
           // Track double enter
-          setDoubleEnterCount((prev) => prev + 1);
-          setTimeout(() => setDoubleEnterCount(0), 300); // Reset after 300ms
-
+          setDoubleEnterCount((prev) => prev + 1)
+          setTimeout(() => setDoubleEnterCount(0), 300) // Reset after 300ms
           if (doubleEnterCount === 0) {
             // First Enter - move to next field
-            e.preventDefault();
+            e.preventDefault()
             setTimeout(() => {
-              typeSelectRefs.current[index]?.focus();
-            }, 0);
+              typeSelectRefs.current[index]?.focus()
+            }, 0)
           } else if (doubleEnterCount === 1) {
             // Second Enter - open dropdown
-            e.preventDefault();
-            setShowHierarchy(true);
-            setSelectedIndex(0);
+            e.preventDefault()
+            setShowHierarchy(true)
+            setSelectedIndex(0)
           }
         }
-        return;
+        return
       }
 
       const getCurrentOptions = () => {
         if (!currentCategory) {
-          return Object.keys(accountHierarchy);
+          return Object.keys(accountHierarchy)
         } else if (!currentSubcategory) {
           if (Array.isArray(accountHierarchy[currentCategory])) {
-            return [...accountHierarchy[currentCategory], "+ Add New Account"];
+            return [...accountHierarchy[currentCategory], "+ Add New Account"]
           } else {
-            return Object.keys(accountHierarchy[currentCategory]);
+            return Object.keys(accountHierarchy[currentCategory])
           }
         } else {
-          return [
-            ...accountHierarchy[currentCategory][currentSubcategory],
-            "+ Add New Account",
-          ];
-        }
-      };
-
-      const currentOptions = getCurrentOptions();
-
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % currentOptions.length);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex(
-          (prev) => (prev - 1 + currentOptions.length) % currentOptions.length
-        );
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        if (selectedIndex >= 0 && selectedIndex < currentOptions.length) {
-          const selectedOption = currentOptions[selectedIndex];
-          handleOptionSelect(selectedOption);
+          return [...accountHierarchy[currentCategory][currentSubcategory], "+ Add New Account"]
         }
       }
-    };
+
+      const currentOptions = getCurrentOptions()
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev + 1) % currentOptions.length)
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev - 1 + currentOptions.length) % currentOptions.length)
+      } else if (e.key === "Enter") {
+        e.preventDefault()
+        if (selectedIndex >= 0 && selectedIndex < currentOptions.length) {
+          const selectedOption = currentOptions[selectedIndex]
+          handleOptionSelect(selectedOption)
+        }
+      }
+    }
 
     const handleOptionSelect = (option) => {
       if (!currentCategory) {
         // Selecting category
-        setCurrentCategory(option);
-        setSelectedIndex(0);
+        setCurrentCategory(option)
+        setSelectedIndex(0)
       } else if (!currentSubcategory) {
         if (option === "+ Add New Account") {
-          startAddingNewAccount(currentCategory);
+          startAddingNewAccount(currentCategory)
         } else if (Array.isArray(accountHierarchy[currentCategory])) {
           // Direct account selection
-          handleAccountSelect(option);
+          handleAccountSelect(option)
         } else {
           // Selecting subcategory
-          setCurrentSubcategory(option);
-          setSelectedIndex(0);
+          setCurrentSubcategory(option)
+          setSelectedIndex(0)
         }
       } else {
         if (option === "+ Add New Account") {
-          startAddingNewAccount(currentCategory, currentSubcategory);
+          startAddingNewAccount(currentCategory, currentSubcategory)
         } else {
           // Final account selection
-          handleAccountSelect(option);
+          handleAccountSelect(option)
         }
       }
-    };
+    }
 
     const handleAccountSelect = (account) => {
-      onChange(account);
-      setShowHierarchy(false);
-      setCurrentCategory(null);
-      setCurrentSubcategory(null);
-      setSelectedIndex(-1);
+      onChange(account)
+      // Update opening balance when account is selected
+      const openingBalance = calculateOpeningBalance(account)
+      handleChange(index, "openingBalance", openingBalance)
+
+      setShowHierarchy(false)
+      setCurrentCategory(null)
+      setCurrentSubcategory(null)
+      setSelectedIndex(-1)
       // Auto-focus to type select after account selection
       setTimeout(() => {
-        const typeSelect = typeSelectRefs.current[index];
+        const typeSelect = typeSelectRefs.current[index]
         if (typeSelect) {
-          typeSelect.focus();
+          typeSelect.focus()
         }
-      }, 50);
-    };
+      }, 50)
+    }
 
     const startAddingNewAccount = (category, subcategory = null) => {
-      setIsAddingNewAccount(true);
-      setNewAccountCategory(category);
-      setNewAccountSubcategory(subcategory);
-      setNewAccountName("");
-      setShowHierarchy(false);
-      setSelectedIndex(-1);
-    };
+      setIsAddingNewAccount(true)
+      setNewAccountCategory(category)
+      setNewAccountSubcategory(subcategory)
+      setNewAccountName("")
+      setShowHierarchy(false)
+      setSelectedIndex(-1)
+    }
 
     const deleteAccount = (account, category, subcategory = null) => {
-      const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy));
+      const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy))
       if (subcategory) {
-        updatedHierarchy[category][subcategory] = updatedHierarchy[category][
-          subcategory
-        ].filter((acc) => acc !== account);
+        updatedHierarchy[category][subcategory] = updatedHierarchy[category][subcategory].filter(
+          (acc) => acc !== account,
+        )
       } else if (Array.isArray(updatedHierarchy[category])) {
-        updatedHierarchy[category] = updatedHierarchy[category].filter(
-          (acc) => acc !== account
-        );
+        updatedHierarchy[category] = updatedHierarchy[category].filter((acc) => acc !== account)
       } else {
         if (updatedHierarchy[category]?.["Other"]) {
-          updatedHierarchy[category]["Other"] = updatedHierarchy[category][
-            "Other"
-          ].filter((acc) => acc !== account);
+          updatedHierarchy[category]["Other"] = updatedHierarchy[category]["Other"].filter((acc) => acc !== account)
         }
       }
-      setAccountHierarchy(updatedHierarchy);
-      const updatedAccounts = accountOptions.filter((acc) => acc !== account);
-      setAccountOptions(updatedAccounts);
+      setAccountHierarchy(updatedHierarchy)
+      const updatedAccounts = accountOptions.filter((acc) => acc !== account)
+      setAccountOptions(updatedAccounts)
       if (value === account) {
-        onChange("");
+        onChange("")
       }
-    };
+    }
 
     const getAllAccountsFromHierarchy = (hierarchy) => {
-      let accounts = [];
+      let accounts = []
       for (const category in hierarchy) {
         if (Array.isArray(hierarchy[category])) {
-          accounts = [...accounts, ...hierarchy[category]];
+          accounts = [...accounts, ...hierarchy[category]]
         } else {
           for (const subcategory in hierarchy[category]) {
-            accounts = [...accounts, ...hierarchy[category][subcategory]];
+            accounts = [...accounts, ...hierarchy[category][subcategory]]
           }
         }
       }
-      return accounts;
-    };
+      return accounts
+    }
 
     const saveNewAccount = () => {
       try {
-        const trimmedName = newAccountName.trim();
-
+        const trimmedName = newAccountName.trim()
         if (!trimmedName) {
-          alert("Please enter an account name");
-          return;
+          alert("Please enter an account name")
+          return
         }
-
-        const allAccounts = getAllAccountsFromHierarchy(accountHierarchy);
+        const allAccounts = getAllAccountsFromHierarchy(accountHierarchy)
         if (allAccounts.includes(trimmedName)) {
-          alert("Account name already exists");
-          return;
+          alert("Account name already exists")
+          return
         }
-
-        const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy));
-
+        const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy))
         if (newAccountSubcategory) {
           if (!updatedHierarchy[newAccountCategory]?.[newAccountSubcategory]) {
-            updatedHierarchy[newAccountCategory][newAccountSubcategory] = [];
+            updatedHierarchy[newAccountCategory][newAccountSubcategory] = []
           }
-          updatedHierarchy[newAccountCategory][newAccountSubcategory].push(
-            trimmedName
-          );
+          updatedHierarchy[newAccountCategory][newAccountSubcategory].push(trimmedName)
         } else if (Array.isArray(updatedHierarchy[newAccountCategory])) {
-          updatedHierarchy[newAccountCategory].push(trimmedName);
+          updatedHierarchy[newAccountCategory].push(trimmedName)
         } else {
           if (!updatedHierarchy[newAccountCategory]) {
-            updatedHierarchy[newAccountCategory] = { Other: [] };
+            updatedHierarchy[newAccountCategory] = { Other: [] }
           } else if (!updatedHierarchy[newAccountCategory]["Other"]) {
-            updatedHierarchy[newAccountCategory]["Other"] = [];
+            updatedHierarchy[newAccountCategory]["Other"] = []
           }
-          updatedHierarchy[newAccountCategory]["Other"].push(trimmedName);
+          updatedHierarchy[newAccountCategory]["Other"].push(trimmedName)
         }
-
-        setAccountHierarchy(updatedHierarchy);
-        const updatedAccounts = [...new Set([...accountOptions, trimmedName])];
-        setAccountOptions(updatedAccounts);
-        onChange(trimmedName);
-        setIsAddingNewAccount(false);
-        setNewAccountName("");
-
+        setAccountHierarchy(updatedHierarchy)
+        const updatedAccounts = [...new Set([...accountOptions, trimmedName])]
+        setAccountOptions(updatedAccounts)
+        onChange(trimmedName)
+        // Set opening balance for new account (will be 0)
+        handleChange(index, "openingBalance", 0)
+        setIsAddingNewAccount(false)
+        setNewAccountName("")
         // Auto-focus to type select after adding new account
         setTimeout(() => {
-          typeSelectRefs.current[index]?.focus();
-        }, 0);
+          typeSelectRefs.current[index]?.focus()
+        }, 0)
       } catch (error) {
-        console.error("Error saving new account:", error);
-        alert("An error occurred while saving the new account");
+        console.error("Error saving new account:", error)
+        alert("An error occurred while saving the new account")
       }
-    };
+    }
 
     // Handle Enter key in new account input
     const handleNewAccountKeyDown = (e) => {
       if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation(); // Add this to prevent form submission
-        saveNewAccount();
+        e.preventDefault()
+        e.stopPropagation() // Add this to prevent form submission
+        saveNewAccount()
       }
-    };
+    }
 
     const renderCategoryOptions = () => (
       <>
-        <div className="font-semibold mb-2 text-gray-700 px-2">
-          Main Categories
-        </div>
+        <div className="font-semibold mb-2 text-gray-700 px-2">Main Categories</div>
         {Object.keys(accountHierarchy).map((category, idx) => (
           <div
             key={category}
@@ -482,19 +520,19 @@ const JournalForm = ({
           </div>
         ))}
       </>
-    );
+    )
 
     const renderSubcategoryOptions = () => {
       const options = Array.isArray(accountHierarchy[currentCategory])
         ? [...accountHierarchy[currentCategory], "+ Add New Account"]
-        : Object.keys(accountHierarchy[currentCategory]);
+        : Object.keys(accountHierarchy[currentCategory])
 
       return (
         <>
           <div
             onClick={() => {
-              setCurrentCategory(null);
-              setSelectedIndex(0);
+              setCurrentCategory(null)
+              setSelectedIndex(0)
             }}
             className="p-2 border border-transparent hover:border-blue-400 cursor-pointer flex items-center text-blue-600 rounded-md transition-colors duration-200"
           >
@@ -512,16 +550,13 @@ const JournalForm = ({
                     selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
                   }`}
                 >
-                  <span
-                    onClick={() => handleAccountSelect(account)}
-                    className="flex-grow"
-                  >
+                  <span onClick={() => handleAccountSelect(account)} className="flex-grow">
                     {account}
                   </span>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation();
-                      deleteAccount(account, currentCategory);
+                      e.stopPropagation()
+                      deleteAccount(account, currentCategory)
                     }}
                     className="text-red-500 hover:text-red-700 ml-2"
                     title="Delete account"
@@ -533,42 +568,38 @@ const JournalForm = ({
               <div
                 onClick={() => handleOptionSelect("+ Add New Account")}
                 className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
-                  selectedIndex === accountHierarchy[currentCategory].length
-                    ? "bg-blue-100"
-                    : "hover:bg-gray-100"
+                  selectedIndex === accountHierarchy[currentCategory].length ? "bg-blue-100" : "hover:bg-gray-100"
                 }`}
               >
                 + Add New Account
               </div>
             </>
           ) : (
-            Object.keys(accountHierarchy[currentCategory]).map(
-              (subcategory, idx) => (
-                <div
-                  key={subcategory}
-                  onClick={() => handleOptionSelect(subcategory)}
-                  className={`p-2 cursor-pointer flex justify-between items-center ${
-                    selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
-                  }`}
-                >
-                  <span>{subcategory}</span>
-                  <span className="text-gray-500">→</span>
-                </div>
-              )
-            )
+            Object.keys(accountHierarchy[currentCategory]).map((subcategory, idx) => (
+              <div
+                key={subcategory}
+                onClick={() => handleOptionSelect(subcategory)}
+                className={`p-2 cursor-pointer flex justify-between items-center ${
+                  selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
+              >
+                <span>{subcategory}</span>
+                <span className="text-gray-500">→</span>
+              </div>
+            ))
           )}
         </>
-      );
-    };
+      )
+    }
 
     const renderAccountOptions = () => {
-      const accounts = accountHierarchy[currentCategory][currentSubcategory];
+      const accounts = accountHierarchy[currentCategory][currentSubcategory]
       return (
         <>
           <div
             onClick={() => {
-              setCurrentSubcategory(null);
-              setSelectedIndex(0);
+              setCurrentSubcategory(null)
+              setSelectedIndex(0)
             }}
             className="p-2 border border-transparent hover:border-blue-400 cursor-pointer flex items-center text-blue-600 rounded-md transition-colors duration-200"
           >
@@ -584,16 +615,13 @@ const JournalForm = ({
                 selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
               }`}
             >
-              <span
-                onClick={() => handleAccountSelect(account)}
-                className="flex-grow"
-              >
+              <span onClick={() => handleAccountSelect(account)} className="flex-grow">
                 {account}
               </span>
               <button
                 onClick={(e) => {
-                  e.stopPropagation();
-                  deleteAccount(account, currentCategory, currentSubcategory);
+                  e.stopPropagation()
+                  deleteAccount(account, currentCategory, currentSubcategory)
                 }}
                 className="text-red-500 hover:text-red-700 ml-2"
                 title="Delete account"
@@ -605,16 +633,14 @@ const JournalForm = ({
           <div
             onClick={() => handleOptionSelect("+ Add New Account")}
             className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
-              selectedIndex === accounts.length
-                ? "bg-blue-100"
-                : "hover:bg-gray-100"
+              selectedIndex === accounts.length ? "bg-blue-100" : "hover:bg-gray-100"
             }`}
           >
             + Add New Account
           </div>
         </>
-      );
-    };
+      )
+    }
 
     return (
       <div
@@ -626,20 +652,16 @@ const JournalForm = ({
         <div
           ref={triggerRef}
           onClick={() => {
-            setShowHierarchy(!showHierarchy);
+            setShowHierarchy(!showHierarchy)
             if (!showHierarchy) {
-              setSelectedIndex(0);
+              setSelectedIndex(0)
             }
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer flex justify-between items-center focus:ring-2 focus:ring-blue-500 focus:outline-none hover:bg-gray-50"
         >
-          <span className={value ? "text-gray-900" : "text-gray-500"}>
-            {value || "Select Account"}
-          </span>
+          <span className={value ? "text-gray-900" : "text-gray-500"}>{value || "Select Account"}</span>
           <ChevronDownIcon
-            className={`h-4 w-4 text-gray-500 transition-transform ${
-              showHierarchy ? "transform rotate-180" : ""
-            }`}
+            className={`h-4 w-4 text-gray-500 transition-transform ${showHierarchy ? "transform rotate-180" : ""}`}
           />
         </div>
         {showHierarchy && !isAddingNewAccount && (
@@ -650,8 +672,8 @@ const JournalForm = ({
             {!currentCategory
               ? renderCategoryOptions()
               : !currentSubcategory
-              ? renderSubcategoryOptions()
-              : renderAccountOptions()}
+                ? renderSubcategoryOptions()
+                : renderAccountOptions()}
           </div>
         )}
         {isAddingNewAccount && (
@@ -683,62 +705,66 @@ const JournalForm = ({
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   const addRow = () => {
-    setEntries([...entries, { account: "", type: "Debit", amount: "" }]);
-  };
+    setEntries([...entries, { account: "", type: "Debit", amount: "", openingBalance: 0 }])
+  }
 
   const removeRow = (index) => {
     if (entries.length <= 2) {
-      alert("You must have at least one debit and one credit entry");
-      return;
+      alert("You must have at least one debit and one credit entry")
+      return
     }
-    const updated = [...entries];
-    updated.splice(index, 1);
-    setEntries(updated);
-  };
+    const updated = [...entries]
+    updated.splice(index, 1)
+    setEntries(updated)
+  }
 
   const handleChange = (index, field, value) => {
-    const updated = [...entries];
-    updated[index][field] = value;
-    setEntries(updated);
-  };
+    const updated = [...entries]
+    updated[index][field] = value
+
+    // If account is changed, update opening balance
+    if (field === "account") {
+      updated[index]["openingBalance"] = calculateOpeningBalance(value)
+    }
+
+    setEntries(updated)
+  }
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e.preventDefault()
     if (!journalDate) {
-      alert("Please select a journal date");
-      return;
+      alert("Please select a journal date")
+      return
     }
     for (const entry of entries) {
       if (!entry.account || !entry.amount) {
-        alert("Please fill all account fields and amounts");
-        return;
+        alert("Please fill all account fields and amounts")
+        return
       }
     }
     for (const entry of entries) {
       if (isNaN(entry.amount)) {
-        alert("Amount must be a number");
-        return;
+        alert("Amount must be a number")
+        return
       }
       if (Number.parseFloat(entry.amount) <= 0) {
-        alert("Amount must be greater than 0");
-        return;
+        alert("Amount must be greater than 0")
+        return
       }
     }
     const totalDebit = entries
       .filter((entry) => entry.type === "Debit")
-      .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0);
+      .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0)
     const totalCredit = entries
       .filter((entry) => entry.type === "Credit")
-      .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0);
+      .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0)
     if (totalDebit !== totalCredit) {
-      alert(
-        `Total debits (${totalDebit}) must equal total credits (${totalCredit})`
-      );
-      return;
+      alert(`Total debits (${totalDebit}) must equal total credits (${totalCredit})`)
+      return
     }
     const newEntry = {
       date: journalDate,
@@ -747,47 +773,31 @@ const JournalForm = ({
         ...entry,
         amount: Number.parseFloat(entry.amount),
       })),
-    };
+    }
     if (onSave) {
-      onSave(newEntry);
+      onSave(newEntry)
     }
-    setSuccessMessage(
-      editData
-        ? "Journal entry updated successfully!"
-        : "Journal entry created successfully!"
-    );
+    setSuccessMessage(editData ? "Journal entry updated successfully!" : "Journal entry created successfully!")
     setTimeout(() => {
-      setSuccessMessage("");
-    }, 3000);
+      setSuccessMessage("")
+    }, 3000)
     if (!editData) {
-      setJournalDate("");
-      setDescription("");
+      setJournalDate("")
+      setDescription("")
       setEntries([
-        { account: "", type: "Debit", amount: "" },
-        { account: "", type: "Credit", amount: "" },
-      ]);
+        { account: "", type: "Debit", amount: "", openingBalance: 0 },
+        { account: "", type: "Credit", amount: "", openingBalance: 0 },
+      ])
     }
-  };
+  }
 
   return (
-    <form
-      ref={formRef}
-      onSubmit={handleSubmit}
-      className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md"
-    >
-      <h2 className="text-center text-xl font-bold mb-4">
-        {editData ? "Edit Journal Entry" : "Add Journal Entry"}
-      </h2>
-      {successMessage && (
-        <div className="text-green-700 text-center font-semibold mb-4">
-          {successMessage}
-        </div>
-      )}
+    <form ref={formRef} onSubmit={handleSubmit} className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-center text-xl font-bold mb-4">{editData ? "Edit Journal Entry" : "Add Journal Entry"}</h2>
+      {successMessage && <div className="text-green-700 text-center font-semibold mb-4">{successMessage}</div>}
       <div className="flex justify-center mb-8">
         <div className="flex items-center gap-8">
-          <label className="text-sm font-medium text-gray-700">
-            Journal Date
-          </label>
+          <label className="text-sm font-medium text-gray-700">Journal Date</label>
           <input
             ref={dateInputRef}
             type="date"
@@ -799,27 +809,41 @@ const JournalForm = ({
           />
         </div>
       </div>
+
+      {/* Updated grid header with Opening Balance column */}
       <div className="grid grid-cols-12 gap-2 mb-2 text-sm font-medium text-gray-700">
-        <div className="col-span-5 text-center">Account</div>
-        <div className="col-span-3 text-center">Type</div>
+        <div className="col-span-4 text-center">Account</div>
+        <div className="col-span-2 text-center">Opening Balance</div>
+        <div className="col-span-2 text-center">Type</div>
         <div className="col-span-3 text-center">Amount (Tk.)</div>
         <div className="col-span-1 text-right">Action</div>
       </div>
+
       {entries.map((entry, index) => (
         <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-center">
-          <div className="col-span-5">
+          <div className="col-span-4">
             <AccountSelect
               value={entry.account}
               onChange={(value) => handleChange(index, "account", value)}
               index={index}
             />
           </div>
-          <div className="col-span-3">
-            <TypeSelect
-              value={entry.type}
-              onChange={(value) => handleChange(index, "type", value)}
-              index={index}
-            />
+
+          {/* Opening Balance Display */}
+          <div className="col-span-2">
+            <div className="w-full p-2 border border-gray-200 rounded-md bg-gray-50 text-center font-medium text-sm">
+              {entry.openingBalance === 0 ? (
+                <span className="text-gray-500">৳ 0.00</span>
+              ) : entry.openingBalance > 0 ? (
+                <span className="text-green-600">৳ {Math.abs(entry.openingBalance).toFixed(2)} Dr</span>
+              ) : (
+                <span className="text-red-600">৳ {Math.abs(entry.openingBalance).toFixed(2)} Cr</span>
+              )}
+            </div>
+          </div>
+
+          <div className="col-span-2">
+            <TypeSelect value={entry.type} onChange={(value) => handleChange(index, "type", value)} index={index} />
           </div>
           <div className="col-span-3">
             <input
@@ -848,6 +872,7 @@ const JournalForm = ({
           </div>
         </div>
       ))}
+
       <button
         type="button"
         onClick={addRow}
@@ -855,10 +880,9 @@ const JournalForm = ({
       >
         <span className="mr-1">+</span>Add Account
       </button>
+
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Description (Optional)
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
         <input
           ref={descriptionInputRef}
           type="text"
@@ -869,17 +893,18 @@ const JournalForm = ({
           placeholder="Enter a description for this journal entry"
         />
       </div>
+
       <div className="flex justify-end gap-3">
         <button
           type="button"
           onClick={() => {
-            setJournalDate("");
-            setDescription("");
+            setJournalDate("")
+            setDescription("")
             setEntries([
-              { account: "", type: "Debit", amount: "" },
-              { account: "", type: "Credit", amount: "" },
-            ]);
-            if (editData) onSave(null);
+              { account: "", type: "Debit", amount: "", openingBalance: 0 },
+              { account: "", type: "Credit", amount: "", openingBalance: 0 },
+            ])
+            if (editData) onSave(null)
           }}
           className="px-4 py-2 border border-red-300 text-red-700 bg-red-50 shadow-sm rounded-md hover:bg-red-100 transition"
         >
@@ -893,7 +918,7 @@ const JournalForm = ({
         </button>
       </div>
     </form>
-  );
-};
+  )
+}
 
-export default JournalForm;
+export default JournalForm
