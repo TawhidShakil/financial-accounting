@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useRef } from "react"
 import { ChevronDownIcon } from "@heroicons/react/24/outline"
 
@@ -26,9 +28,9 @@ const JournalForm = ({
   const descriptionInputRef = useRef(null)
   const formRef = useRef(null)
 
-  // Function to calculate opening balance for an account
-  const calculateOpeningBalance = (accountName) => {
-    if (!accountName) {
+  // Function to calculate opening balance for an account as of a specific date
+  const calculateOpeningBalance = (accountName, journalDate) => {
+    if (!accountName || !journalDate) {
       return 0
     }
 
@@ -72,19 +74,21 @@ const JournalForm = ({
       }
     })
 
-    // Filter entries for the specific account
-    const accountEntries = allLedgerEntries.filter((entry) => entry.account === accountName)
+    // Filter entries for the specific account that are BEFORE the journal date
+    const entriesBeforeDate = allLedgerEntries.filter(
+      (entry) => entry.account === accountName && new Date(entry.date) < new Date(journalDate),
+    )
 
-    if (accountEntries.length === 0) {
+    if (entriesBeforeDate.length === 0) {
       return 0
     }
 
-    // Sort entries by date (same as Ledger component)
-    accountEntries.sort((a, b) => new Date(a.date) - new Date(b.date))
+    // Sort entries by date
+    entriesBeforeDate.sort((a, b) => new Date(a.date) - new Date(b.date))
 
     // Calculate balance using same logic as Ledger component
-    const totalDebits = accountEntries.reduce((sum, entry) => sum + (entry.debit || 0), 0)
-    const totalCredits = accountEntries.reduce((sum, entry) => sum + (entry.credit || 0), 0)
+    const totalDebits = entriesBeforeDate.reduce((sum, entry) => sum + (entry.debit || 0), 0)
+    const totalCredits = entriesBeforeDate.reduce((sum, entry) => sum + (entry.credit || 0), 0)
 
     // Return net balance (positive for debit balance, negative for credit balance)
     return totalDebits - totalCredits
@@ -104,7 +108,7 @@ const JournalForm = ({
       setDescription(editData.description || "")
       const entriesWithBalance = editData.entries.map((entry) => ({
         ...entry,
-        openingBalance: calculateOpeningBalance(entry.account),
+        openingBalance: calculateOpeningBalance(entry.account, editData.date),
       }))
       setEntries(entriesWithBalance)
     } else {
@@ -115,7 +119,18 @@ const JournalForm = ({
         { account: "", type: "Credit", amount: "", openingBalance: 0 },
       ])
     }
-  }, [editData]) // Remove ledgerData dependency
+  }, [editData])
+
+  // Recalculate opening balances when journal date changes
+  useEffect(() => {
+    if (journalDate) {
+      const updatedEntries = entries.map((entry) => ({
+        ...entry,
+        openingBalance: entry.account ? calculateOpeningBalance(entry.account, journalDate) : 0,
+      }))
+      setEntries(updatedEntries)
+    }
+  }, [journalDate])
 
   // Handle Enter key navigation
   const handleKeyDown = (e, index, fieldType) => {
@@ -388,8 +403,8 @@ const JournalForm = ({
 
     const handleAccountSelect = (account) => {
       onChange(account)
-      // Update opening balance when account is selected
-      const openingBalance = calculateOpeningBalance(account)
+      // Update opening balance when account is selected using journal date
+      const openingBalance = calculateOpeningBalance(account, journalDate)
       handleChange(index, "openingBalance", openingBalance)
 
       setShowHierarchy(false)
@@ -726,9 +741,9 @@ const JournalForm = ({
     const updated = [...entries]
     updated[index][field] = value
 
-    // If account is changed, update opening balance
+    // If account is changed, update opening balance using the journal date
     if (field === "account") {
-      updated[index]["openingBalance"] = calculateOpeningBalance(value)
+      updated[index]["openingBalance"] = calculateOpeningBalance(value, journalDate)
     }
 
     setEntries(updated)
