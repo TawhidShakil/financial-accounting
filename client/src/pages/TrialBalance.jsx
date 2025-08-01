@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import * as XLSX from "xlsx"
 
 export default function TrialBalance() {
+  const navigate = useNavigate()
   const [accountBalances, setAccountBalances] = useState([])
   const [totalDebits, setTotalDebits] = useState(0)
   const [totalCredits, setTotalCredits] = useState(0)
@@ -99,6 +101,12 @@ export default function TrialBalance() {
     }
 
     return false
+  }
+
+  // Handle account click - navigate to ledger with account parameter
+  const handleAccountClick = (accountName) => {
+    const encodedAccountName = encodeURIComponent(accountName)
+    navigate(`/ledger?account=${encodedAccountName}`)
   }
 
   useEffect(() => {
@@ -295,7 +303,7 @@ export default function TrialBalance() {
           <div className="relative inline-block text-left">
             <button
               onClick={() => setShowExportMenu((prev) => !prev)}
-              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
+              className="flex items-center gap-2 bg-ray-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
             >
               <span>Export</span>
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 fill-white" viewBox="0 0 20 20">
@@ -339,15 +347,15 @@ export default function TrialBalance() {
           <div className="bg-white shadow-md rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-300">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                       Account Name
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider">
                       Debit Balance (৳)
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider">
                       Credit Balance (৳)
                     </th>
                   </tr>
@@ -356,7 +364,11 @@ export default function TrialBalance() {
                   {accountBalances.map((account, index) => (
                     <tr key={index} className="hover:bg-gray-50 transition-colors">
                       <td
-                        className={`px-6 py-4 text-sm font-medium ${account.isAbnormal ? "text-red-600" : "text-gray-900"}`}
+                        className={`px-6 py-4 text-sm font-medium cursor-pointer  ${
+                          account.isAbnormal ? "text-red-600 hover:text-red-800" : "text-gray-600 hover:text-gray-800"
+                        }`}
+                        onClick={() => handleAccountClick(account.account)}
+                        title={`Click to view ${account.account} ledger`}
                       >
                         {account.account}
                       </td>
@@ -388,6 +400,7 @@ export default function TrialBalance() {
                 </tfoot>
               </table>
             </div>
+
 
           </div>
         )}
