@@ -1,124 +1,95 @@
-import {
-  EnvelopeIcon,
-  LockClosedIcon,
-  UserIcon,
-} from "@heroicons/react/24/outline";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+'use client';
 
-export default function Register() {
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    role: "user",
-  });
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+const Register = () => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const newUser = {
+      fullName,
+      email,
+      password,
+      role: 'user',
+    };
 
-    // Save to localStorage (simulate registration)
-    const existingUsers = JSON.parse(localStorage.getItem("registeredUsers")) || [];
-    const alreadyExists = existingUsers.some((u) => u.email === form.email);
-
-    if (alreadyExists) {
-      setError("User already exists with this email");
-    } else {
-      const updatedUsers = [...existingUsers, form];
-      localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers));
-      setSuccess(true);
-      setError("");
-      navigate("/"); // Redirect to login after success
-    }
+    localStorage.setItem('registeredUser', JSON.stringify(newUser));
+    alert('Registration successful! Please login.');
+    navigate('/login');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl">
-        <h2 className="text-3xl font-semibold text-center text-gray-800 mb-6">
-          Create an Account
-        </h2>
+    <div className="flex items-center justify-center p-4 min-h-screen">
+      <div className="w-full max-w-md">
+        <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-lg p-8 shadow-sm">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <label htmlFor="fullName" className="text-sm font-medium text-gray-900 dark:text-gray-100">Full Name</label>
+              <input
+                id="fullName"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter your full name"
+                className="w-full h-10 px-3 py-2 text-sm rounded-md bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-950 dark:focus:ring-gray-300"
+                required
+              />
+            </div>
 
-        {error && (
-          <p className="text-red-600 text-center mb-4 font-medium">{error}</p>
-        )}
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium text-gray-900 dark:text-gray-100">Email</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="w-full h-10 px-3 py-2 text-sm rounded-md bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-950 dark:focus:ring-gray-300"
+                required
+              />
+            </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email */}
-          <div className="relative">
-            <span className="absolute left-3 top-2.5 text-gray-400">
-              <EnvelopeIcon className="h-5 w-5" />
-            </span>
-            <input
-              type="email"
-              name="email"
-              required
-              value={form.email}
-              onChange={handleChange}
-              placeholder="Email"
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-gray-900 dark:text-gray-100">Password</label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full h-10 px-3 py-2 pr-10 text-sm rounded-md bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-950 dark:focus:ring-gray-300"
+                  required
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center text-gray-400 dark:text-gray-500">
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" className="w-full h-10 rounded-md bg-gray-900 dark:bg-gray-50 text-white dark:text-gray-900 font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition">
+              Create account
+            </button>
+          </form>
+
+          <div className="text-center mt-6">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Already have an account?{' '}
+              <Link to="/login" className="font-medium text-gray-900 dark:text-gray-100 underline underline-offset-4 hover:no-underline">
+                Sign in
+              </Link>
+            </p>
           </div>
-
-          {/* Password */}
-          <div className="relative">
-            <span className="absolute left-3 top-2.5 text-gray-400">
-              <LockClosedIcon className="h-5 w-5" />
-            </span>
-            <input
-              type="password"
-              name="password"
-              required
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Password"
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-
-          {/* Role Dropdown */}
-          <div className="relative">
-            <span className="absolute left-3 top-2.5 text-gray-400">
-              <UserIcon className="h-5 w-5" />
-            </span>
-            <select
-              name="role"
-              required
-              value={form.role}
-              onChange={handleChange}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="user">Register as User</option>
-              <option value="admin">Register as Admin</option>
-            </select>
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl"
-          >
-            Register
-          </button>
-
-          {/* Back to Login */}
-          <p className="text-center text-sm mt-2">
-            Already have an account?{" "}
-            <span
-              onClick={() => navigate("/")}
-              className="text-blue-600 hover:underline cursor-pointer"
-            >
-              Login here
-            </span>
-          </p>
-        </form>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default Register;
