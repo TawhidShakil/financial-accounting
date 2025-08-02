@@ -121,10 +121,10 @@ const Hero = () => {
             <main className="relative flex-1 flex items-center justify-center text-center w-full px-4">
                 <div className="relative flex flex-col items-center justify-center py-10 sm:py-16 max-w-5xl mx-auto">
                     <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 dark:text-white leading-tight max-w-4xl">
-                        Where your <span className="text-indigo-600 dark:text-indigo-400">data</span> turns into software with a click
+                        Built for <span className="text-indigo-600 dark:text-indigo-400">Accountants</span> Designed for Simplicity
                     </h1>
                     <p className="mt-6 text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl">
-                        Build custom portals, CRMs, and tools effortlessly. From concept to launch in minutes, not months.
+                        From journal entry to financial insights — streamline your workflow with an elegant, user-friendly accounting dashboard.
                     </p>
                     <button className="mt-8 flex items-center gap-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold px-6 py-3 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-md transform hover:scale-105">
                         <PlayIcon className="h-6 w-6" />
