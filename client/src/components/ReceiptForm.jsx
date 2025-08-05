@@ -1,4 +1,7 @@
+"use client"
+
 import { useState, useEffect, useRef } from "react"
+import { ChevronDownIcon } from "@heroicons/react/24/outline" // Import ChevronDownIcon
 
 const ReceiptForm = ({
   onSave,
@@ -7,6 +10,8 @@ const ReceiptForm = ({
   setCreditAccountOptions,
   receiptHierarchy,
   setReceiptHierarchy,
+  creditAccountHierarchy, // New prop
+  setCreditAccountHierarchy, // New prop
 }) => {
   const [receiptDate, setReceiptDate] = useState("")
   const [receipt, setReceipt] = useState("")
@@ -50,6 +55,23 @@ const ReceiptForm = ({
     }
   }
 
+  // Custom hook for click outside detection
+  function useClickOutside(refs, callback) {
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (refs.every((ref) => ref.current && !ref.current.contains(event.target))) {
+          callback()
+        }
+      }
+      document.addEventListener("mousedown", handleClickOutside)
+      document.addEventListener("touchstart", handleClickOutside)
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside)
+        document.removeEventListener("touchstart", handleClickOutside)
+      }
+    }, [refs, callback])
+  }
+
   // Receipt Select Component (with hierarchy for debit side)
   const ReceiptSelect = ({ value, onChange }) => {
     const [showHierarchy, setShowHierarchy] = useState(false)
@@ -57,20 +79,12 @@ const ReceiptForm = ({
     const [newBankName, setNewBankName] = useState("")
     const [isAddingNewBank, setIsAddingNewBank] = useState(false)
     const dropdownRef = useRef(null)
+    const triggerRef = useRef(null)
 
-    useEffect(() => {
-      const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setShowHierarchy(false)
-          setCurrentCategory(null)
-        }
-      }
-
-      document.addEventListener("mousedown", handleClickOutside)
-      return () => {
-        document.removeEventListener("mousedown", handleClickOutside)
-      }
-    }, [])
+    useClickOutside([triggerRef, dropdownRef], () => {
+      setShowHierarchy(false)
+      setCurrentCategory(null)
+    })
 
     const handleReceiptSelect = (receiptAccount) => {
       onChange(receiptAccount)
@@ -208,7 +222,10 @@ const ReceiptForm = ({
     return (
       <div className="relative" ref={dropdownRef}>
         <div
-          ref={receiptRef}
+          ref={(el) => {
+            triggerRef.current = el
+            receiptRef.current = el // Assign to receiptRef for external use
+          }}
           onClick={() => setShowHierarchy(!showHierarchy)}
           onKeyDown={(e) => handleKeyDown(e, accountRef)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -262,228 +279,399 @@ const ReceiptForm = ({
     )
   }
 
-  // Account Select Component (with search-as-you-type and "Add New Account" option in dropdown)
+  // Account Select Component (with hierarchy and "Add New Account" option)
   const AccountSelect = ({ value, onChange }) => {
-    const [showDropdown, setShowDropdown] = useState(false)
-    const [searchTerm, setSearchTerm] = useState("")
-    const [isAddingNewAccount, setIsAddingNewAccount] = useState(false)
+    const [showHierarchy, setShowHierarchy] = useState(false)
+    const [currentCategory, setCurrentCategory] = useState(null)
+    const [currentSubcategory, setCurrentSubcategory] = useState(null)
     const [newAccountName, setNewAccountName] = useState("")
+    const [isAddingNewAccount, setIsAddingNewAccount] = useState(false)
+    const [newAccountCategory, setNewAccountCategory] = useState(null)
+    const [newAccountSubcategory, setNewAccountSubcategory] = useState(null)
+    const [selectedIndex, setSelectedIndex] = useState(-1)
+    const [doubleEnterCount, setDoubleEnterCount] = useState(0)
     const dropdownRef = useRef(null)
-    const inputRef = useRef(null)
+    const triggerRef = useRef(null)
+    const newAccountInputRef = useRef(null)
+
+    useClickOutside([triggerRef, dropdownRef], () => {
+      setShowHierarchy(false)
+      setCurrentCategory(null)
+      setCurrentSubcategory(null)
+      setSelectedIndex(-1)
+    })
 
     useEffect(() => {
-      const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setShowDropdown(false)
-          setIsAddingNewAccount(false)
-          setSearchTerm("")
+      const handleKeyDown = (e) => {
+        if (e.key === "Escape") {
+          setShowHierarchy(false)
+          setCurrentCategory(null)
+          setCurrentSubcategory(null)
+          setSelectedIndex(-1)
+          triggerRef.current?.focus()
         }
       }
-
-      document.addEventListener("mousedown", handleClickOutside)
-      return () => {
-        document.removeEventListener("mousedown", handleClickOutside)
-      }
+      document.addEventListener("keydown", handleKeyDown)
+      return () => document.removeEventListener("keydown", handleKeyDown)
     }, [])
 
-    // Filter accounts based on search term
-    const filteredAccounts = creditAccountOptions.filter((account) =>
-      account.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-
-    const handleAccountSelect = (accountName) => {
-      onChange(accountName)
-      setShowDropdown(false)
-      setSearchTerm("")
-      // Focus next field
-      if (amountRef.current) {
-        amountRef.current.focus()
-      }
-    }
-
-    const handleInputChange = (e) => {
-      const inputValue = e.target.value
-      setSearchTerm(inputValue)
-      setShowDropdown(true)
-
-      // Only update parent if there's an exact match
-      const exactMatch = creditAccountOptions.find((account) => account.toLowerCase() === inputValue.toLowerCase())
-      if (exactMatch) {
-        onChange(exactMatch)
-      } else if (inputValue === "") {
-        onChange("")
-      }
-    }
-
-    const handleInputFocus = () => {
-      setShowDropdown(true)
-      // Initialize search term with current value when focusing
-      setSearchTerm(value || "")
-    }
-
-    const handleInputBlur = () => {
-      // Small delay to allow clicking on dropdown items
-      setTimeout(() => {
-        if (!dropdownRef.current?.contains(document.activeElement)) {
-          setShowDropdown(false)
-          setSearchTerm("")
+    // Handle keyboard navigation in dropdown
+    const handleDropdownKeyDown = (e) => {
+      if (!showHierarchy) {
+        if (e.key === "Enter") {
+          setDoubleEnterCount((prev) => prev + 1)
+          setTimeout(() => setDoubleEnterCount(0), 300)
+          if (doubleEnterCount === 0) {
+            e.preventDefault()
+            setTimeout(() => {
+              amountRef.current?.focus()
+            }, 0)
+          } else if (doubleEnterCount === 1) {
+            e.preventDefault()
+            setShowHierarchy(true)
+            setSelectedIndex(0)
+          }
         }
-      }, 150)
-    }
+        return
+      }
 
-    const handleKeyDown = (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault()
-        if (filteredAccounts.length === 1) {
-          // Auto-select if only one match
-          handleAccountSelect(filteredAccounts[0])
-        } else if (filteredAccounts.length > 1) {
-          // Select first match if multiple
-          handleAccountSelect(filteredAccounts[0])
-        } else if (searchTerm) {
-          // If no matches but there's text, keep the text as value
-          onChange(searchTerm)
-          setShowDropdown(false)
-          if (amountRef.current) {
-            amountRef.current.focus()
+      const getCurrentOptions = () => {
+        if (!currentCategory) {
+          return Object.keys(creditAccountHierarchy)
+        } else if (!currentSubcategory) {
+          if (Array.isArray(creditAccountHierarchy[currentCategory])) {
+            return [...creditAccountHierarchy[currentCategory], "+ Add New Account"]
+          } else {
+            return Object.keys(creditAccountHierarchy[currentCategory])
           }
         } else {
-          // Move to next field
-          if (amountRef.current) {
-            amountRef.current.focus()
-          }
+          return [...creditAccountHierarchy[currentCategory][currentSubcategory], "+ Add New Account"]
         }
-      } else if (e.key === "Escape") {
-        setShowDropdown(false)
-        setSearchTerm("")
-      } else if (e.key === "ArrowDown" && filteredAccounts.length > 0) {
+      }
+
+      const currentOptions = getCurrentOptions()
+
+      if (e.key === "ArrowDown") {
         e.preventDefault()
-        // Could add arrow key navigation here
+        setSelectedIndex((prev) => (prev + 1) % currentOptions.length)
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev - 1 + currentOptions.length) % currentOptions.length)
+      } else if (e.key === "Enter") {
+        e.preventDefault()
+        if (selectedIndex >= 0 && selectedIndex < currentOptions.length) {
+          const selectedOption = currentOptions[selectedIndex]
+          handleOptionSelect(selectedOption)
+        }
       }
     }
 
-    const startAddingNewAccount = () => {
+    const handleOptionSelect = (option) => {
+      if (!currentCategory) {
+        setCurrentCategory(option)
+        setSelectedIndex(0)
+      } else if (!currentSubcategory) {
+        if (option === "+ Add New Account") {
+          startAddingNewAccount(currentCategory)
+        } else if (Array.isArray(creditAccountHierarchy[currentCategory])) {
+          handleAccountSelect(option)
+        } else {
+          setCurrentSubcategory(option)
+          setSelectedIndex(0)
+        }
+      } else {
+        if (option === "+ Add New Account") {
+          startAddingNewAccount(currentCategory, currentSubcategory)
+        } else {
+          handleAccountSelect(option)
+        }
+      }
+    }
+
+    const handleAccountSelect = (account) => {
+      onChange(account)
+      setShowHierarchy(false)
+      setCurrentCategory(null)
+      setCurrentSubcategory(null)
+      setSelectedIndex(-1)
+      setTimeout(() => {
+        amountRef.current?.focus()
+      }, 50)
+    }
+
+    const startAddingNewAccount = (category, subcategory = null) => {
       setIsAddingNewAccount(true)
-      setNewAccountName(searchTerm)
-      setShowDropdown(false)
+      setNewAccountCategory(category)
+      setNewAccountSubcategory(subcategory)
+      setNewAccountName("")
+      setShowHierarchy(false)
+      setSelectedIndex(-1)
+    }
+
+    const deleteAccount = (account, category, subcategory = null) => {
+      if (window.confirm(`Are you sure you want to delete "${account}"?`)) {
+        const updatedHierarchy = JSON.parse(JSON.stringify(creditAccountHierarchy))
+        if (subcategory) {
+          updatedHierarchy[category][subcategory] = updatedHierarchy[category][subcategory].filter(
+            (acc) => acc !== account,
+          )
+        } else if (Array.isArray(updatedHierarchy[category])) {
+          updatedHierarchy[category] = updatedHierarchy[category].filter((acc) => acc !== account)
+        } else {
+          if (updatedHierarchy[category]?.["Other"]) {
+            updatedHierarchy[category]["Other"] = updatedHierarchy[category]["Other"].filter((acc) => acc !== account)
+          }
+        }
+        setCreditAccountHierarchy(updatedHierarchy)
+        if (value === account) {
+          onChange("")
+        }
+      }
+    }
+
+    const getAllAccountsFromHierarchy = (hierarchy) => {
+      let accounts = []
+      for (const category in hierarchy) {
+        if (Array.isArray(hierarchy[category])) {
+          accounts = [...accounts, ...hierarchy[category]]
+        } else {
+          for (const subcategory in hierarchy[category]) {
+            accounts = [...accounts, ...hierarchy[category][subcategory]]
+          }
+        }
+      }
+      return accounts
     }
 
     const saveNewAccount = () => {
-      const trimmedName = newAccountName.trim()
-
-      if (!trimmedName) {
-        alert("Please enter an account name")
-        return
-      }
-
-      // Check for existing account
-      if (creditAccountOptions.includes(trimmedName)) {
-        alert("Account name already exists")
-        return
-      }
-
-      // Add to account options
-      const updatedAccounts = [...creditAccountOptions, trimmedName]
-      setCreditAccountOptions(updatedAccounts)
-
-      // Select the new account and reset state
-      onChange(trimmedName)
-      setIsAddingNewAccount(false)
-      setNewAccountName("")
-      setSearchTerm("")
-
-      // Focus next field
-      if (amountRef.current) {
-        amountRef.current.focus()
+      try {
+        const trimmedName = newAccountName.trim()
+        if (!trimmedName) {
+          alert("Please enter an account name")
+          return
+        }
+        const allAccounts = getAllAccountsFromHierarchy(creditAccountHierarchy)
+        if (allAccounts.includes(trimmedName)) {
+          alert("Account name already exists")
+          return
+        }
+        const updatedHierarchy = JSON.parse(JSON.stringify(creditAccountHierarchy))
+        if (newAccountSubcategory) {
+          if (!updatedHierarchy[newAccountCategory]?.[newAccountSubcategory]) {
+            updatedHierarchy[newAccountCategory][newAccountSubcategory] = []
+          }
+          updatedHierarchy[newAccountCategory][newAccountSubcategory].push(trimmedName)
+        } else if (Array.isArray(updatedHierarchy[newAccountCategory])) {
+          updatedHierarchy[newAccountCategory].push(trimmedName)
+        } else {
+          if (!updatedHierarchy[newAccountCategory]) {
+            updatedHierarchy[newAccountCategory] = { Other: [] }
+          } else if (!updatedHierarchy[newAccountCategory]["Other"]) {
+            updatedHierarchy[newAccountCategory]["Other"] = []
+          }
+          updatedHierarchy[newAccountCategory]["Other"].push(trimmedName)
+        }
+        setCreditAccountHierarchy(updatedHierarchy)
+        onChange(trimmedName)
+        setIsAddingNewAccount(false)
+        setNewAccountName("")
+        setTimeout(() => {
+          amountRef.current?.focus()
+        }, 0)
+      } catch (error) {
+        console.error("Error saving new account:", error)
+        alert("An error occurred while saving the new account")
       }
     }
 
-    // Display value: show search term when dropdown is open and user is typing, otherwise show selected value
-    const displayValue = showDropdown ? searchTerm : value || ""
+    const handleNewAccountKeyDown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault()
+        e.stopPropagation()
+        saveNewAccount()
+      }
+    }
+
+    const renderCategoryOptions = () => (
+      <>
+        <div className="font-semibold mb-2 text-gray-700 px-2">Main Categories</div>
+        {Object.keys(creditAccountHierarchy).map((category, idx) => (
+          <div
+            key={category}
+            onClick={() => handleOptionSelect(category)}
+            className={`p-2 cursor-pointer flex justify-between items-center ${
+              selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+            }`}
+          >
+            <span>{category}</span>
+            <span className="text-gray-500">→</span>
+          </div>
+        ))}
+      </>
+    )
+
+    const renderSubcategoryOptions = () => {
+      const options = Array.isArray(creditAccountHierarchy[currentCategory])
+        ? [...creditAccountHierarchy[currentCategory], "+ Add New Account"]
+        : Object.keys(creditAccountHierarchy[currentCategory])
+
+      return (
+        <>
+          <div
+            onClick={() => {
+              setCurrentCategory(null)
+              setSelectedIndex(0)
+            }}
+            className="p-2 border border-transparent hover:border-blue-400 cursor-pointer flex items-center text-blue-600 rounded-md transition-colors duration-200"
+          >
+            ← Back to Categories
+          </div>
+          <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-gray-800 text-center py-1">
+            {currentCategory}
+          </div>
+          {Array.isArray(creditAccountHierarchy[currentCategory]) ? (
+            <>
+              {creditAccountHierarchy[currentCategory].map((account, idx) => (
+                <div
+                  key={account}
+                  className={`p-2 cursor-pointer flex justify-between items-center ${
+                    selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                  }`}
+                >
+                  <span onClick={() => handleAccountSelect(account)} className="flex-grow">
+                    {account}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteAccount(account, currentCategory)
+                    }}
+                    className="text-red-500 hover:text-red-700 ml-2"
+                    title="Delete account"
+                  >
+                    −
+                  </button>
+                </div>
+              ))}
+              <div
+                onClick={() => handleOptionSelect("+ Add New Account")}
+                className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
+                  selectedIndex === creditAccountHierarchy[currentCategory].length ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
+              >
+                + Add New Account
+              </div>
+            </>
+          ) : (
+            Object.keys(creditAccountHierarchy[currentCategory]).map((subcategory, idx) => (
+              <div
+                key={subcategory}
+                onClick={() => handleOptionSelect(subcategory)}
+                className={`p-2 cursor-pointer flex justify-between items-center ${
+                  selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
+              >
+                <span>{subcategory}</span>
+                <span className="text-gray-500">→</span>
+              </div>
+            ))
+          )}
+        </>
+      )
+    }
+
+    const renderAccountOptions = () => {
+      const accounts = creditAccountHierarchy[currentCategory][currentSubcategory]
+      return (
+        <>
+          <div
+            onClick={() => {
+              setCurrentSubcategory(null)
+              setSelectedIndex(0)
+            }}
+            className="p-2 border border-transparent hover:border-blue-400 cursor-pointer flex items-center text-blue-600 rounded-md transition-colors duration-200"
+          >
+            ← Back to {currentCategory}
+          </div>
+          <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-gray-800 text-center py-1">
+            {currentSubcategory}
+          </div>
+          {accounts.map((account, idx) => (
+            <div
+              key={account}
+              className={`p-2 cursor-pointer flex justify-between items-center ${
+                selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+              }`}
+            >
+              <span onClick={() => handleAccountSelect(account)} className="flex-grow">
+                {account}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  deleteAccount(account, currentCategory, currentSubcategory)
+                }}
+                className="text-red-500 hover:text-red-700 ml-2"
+                title="Delete account"
+              >
+                −
+              </button>
+            </div>
+          ))}
+          <div
+            onClick={() => handleOptionSelect("+ Add New Account")}
+            className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
+              selectedIndex === accounts.length ? "bg-blue-100" : "hover:bg-gray-100"
+            }`}
+          >
+            + Add New Account
+          </div>
+        </>
+      )
+    }
 
     return (
       <div className="relative" ref={dropdownRef}>
-        <input
+        <div
           ref={(el) => {
-            inputRef.current = el
-            if (accountRef) {
-              accountRef.current = el
+            triggerRef.current = el
+            accountRef.current = el // Assign to accountRef for external use
+          }}
+          onClick={() => {
+            setShowHierarchy(!showHierarchy)
+            if (!showHierarchy) {
+              setSelectedIndex(0)
             }
           }}
-          type="text"
-          value={displayValue}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          onKeyDown={handleKeyDown}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Search or select account..."
-          autoComplete="off"
-        />
-
-        {showDropdown && !isAddingNewAccount && (
+          onKeyDown={handleDropdownKeyDown}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer flex justify-between items-center focus:ring-2 focus:ring-blue-500 focus:outline-none hover:bg-gray-50"
+          tabIndex={0}
+        >
+          <span className={value ? "text-gray-900" : "text-gray-500"}>{value || "Select Account"}</span>
+          <ChevronDownIcon
+            className={`h-4 w-4 text-gray-500 transition-transform ${showHierarchy ? "transform rotate-180" : ""}`}
+          />
+        </div>
+        {showHierarchy && !isAddingNewAccount && (
           <div
+            ref={dropdownRef}
             className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
-            onMouseDown={(e) => e.preventDefault()} // Prevent input blur when clicking dropdown
           >
-            <div className="p-2">
-              <div className="font-semibold mb-2 text-gray-700">Credit Accounts</div>
-              {filteredAccounts.length > 0 ? (
-                filteredAccounts.map((account) => (
-                  <div
-                    key={account}
-                    onClick={() => handleAccountSelect(account)}
-                    className="p-2 hover:bg-gray-100 cursor-pointer"
-                  >
-                    <span
-                      dangerouslySetInnerHTML={{
-                        __html: searchTerm
-                          ? account.replace(
-                              new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"),
-                              '<mark class="bg-yellow-200">$1</mark>',
-                            )
-                          : account,
-                      }}
-                    />
-                  </div>
-                ))
-              ) : searchTerm ? (
-                <div className="p-2 text-gray-500 italic">No accounts found for "{searchTerm}"</div>
-              ) : (
-                creditAccountOptions.map((account) => (
-                  <div
-                    key={account}
-                    onClick={() => handleAccountSelect(account)}
-                    className="p-2 hover:bg-gray-100 cursor-pointer"
-                  >
-                    {account}
-                  </div>
-                ))
-              )}
-              <button
-                type="button"
-                onClick={startAddingNewAccount}
-                className="p-2 hover:bg-gray-100 cursor-pointer text-blue-600 font-semibold w-full text-left border-t border-gray-200 mt-1"
-              >
-                + Add New Account
-                {searchTerm && ` "${searchTerm}"`}
-              </button>
-            </div>
+            {!currentCategory
+              ? renderCategoryOptions()
+              : !currentSubcategory
+                ? renderSubcategoryOptions()
+                : renderAccountOptions()}
           </div>
         )}
-
         {isAddingNewAccount && (
           <div className="flex items-center gap-2 mt-2">
             <input
+              ref={newAccountInputRef}
               type="text"
               value={newAccountName}
               onChange={(e) => setNewAccountName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  saveNewAccount()
-                }
-              }}
+              onKeyDown={handleNewAccountKeyDown}
               placeholder="Enter new account name"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
               autoFocus
@@ -497,14 +685,7 @@ const ReceiptForm = ({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setIsAddingNewAccount(false)
-                setSearchTerm("")
-                // Refocus the main input
-                if (inputRef.current) {
-                  inputRef.current.focus()
-                }
-              }}
+              onClick={() => setIsAddingNewAccount(false)}
               className="px-4 py-2 border border-gray-300 text-gray-700 bg-gray-50 shadow-sm rounded-md hover:bg-gray-100 transition"
             >
               Cancel

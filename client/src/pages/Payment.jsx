@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import PaymentForm from "../components/PaymentForm"
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline"
@@ -7,30 +9,55 @@ const defaultPaymentHierarchy = {
   Bank: ["Trust Bank", "NRBC Bank"],
 }
 
-const defaultDebitAccountOptions = [
-  "Rent Expense",
-  "Salaries Expense",
-  "Utilities Expense",
-  "Office Supplies Expense",
-  "Travel Expense",
-  "Marketing Expense",
-  "Insurance Expense",
-  "Maintenance Expense",
-  "Professional Fees",
-  "Interest Expense",
-  "Accounts Payable",
-  "Notes Payable",
-  "Loan Payable",
-  "Advance to Supplier",
-  "Prepaid Expenses",
-  "Equipment Purchase",
-  "Inventory Purchase",
-]
+// New hierarchical structure for debit accounts in PaymentForm
+const defaultDebitAccountHierarchy = {
+  Expenses: [
+    "Rent Expense",
+    "Salaries Expense",
+    "Utilities Expense",
+    "Office Supplies Expense",
+    "Maintenance Expense",
+    "Travel Expense",
+    "Marketing Expense",
+    "Insurance Expense",
+    "Professional Fees",
+    "Interest Expense",
+  ],
+  Assets: ["Prepaid Expenses", "Advance to Supplier", "Equipment Purchase", "Inventory Purchase"],
+  Liabilities: ["Accounts Payable", "Notes Payable", "Loan Payable"],
+}
+
+// Helper to flatten hierarchy into a simple list of account names
+const flattenHierarchy = (hierarchy) => {
+  const accounts = []
+  for (const [key, value] of Object.entries(hierarchy)) {
+    if (Array.isArray(value)) {
+      accounts.push(...value)
+    } else {
+      accounts.push(...flattenHierarchy(value))
+    }
+  }
+  return accounts
+}
 
 export default function Payment() {
   const [entries, setEntries] = useState([])
   const [editingIndex, setEditingIndex] = useState(null)
-  const [debitAccountOptions, setDebitAccountOptions] = useState(defaultDebitAccountOptions)
+
+  // Manage debit account options and hierarchy
+  const [debitAccountHierarchy, setDebitAccountHierarchy] = useState(() => {
+    const savedHierarchy = localStorage.getItem("paymentDebitAccountHierarchy")
+    return savedHierarchy ? JSON.parse(savedHierarchy) : defaultDebitAccountHierarchy
+  })
+
+  const [debitAccountOptions, setDebitAccountOptions] = useState(() => {
+    const savedAccounts = localStorage.getItem("paymentDebitAccountOptions")
+    if (savedAccounts) return JSON.parse(savedAccounts)
+    const initialAccounts = flattenHierarchy(defaultDebitAccountHierarchy)
+    localStorage.setItem("paymentDebitAccountOptions", JSON.stringify(initialAccounts))
+    return initialAccounts
+  })
+
   const [paymentHierarchy, setPaymentHierarchy] = useState(defaultPaymentHierarchy)
 
   useEffect(() => {
@@ -40,12 +67,14 @@ export default function Payment() {
     const savedDebitAccounts = localStorage.getItem("paymentDebitAccountOptions")
     const savedHierarchy = localStorage.getItem("paymentHierarchy")
     const savedLedgerEntries = localStorage.getItem("ledgerEntries")
+    const savedDebitAccountHierarchy = localStorage.getItem("paymentDebitAccountHierarchy")
 
     console.log("Payment: Raw localStorage data:", {
       savedEntries,
       savedDebitAccounts,
       savedHierarchy,
       savedLedgerEntries,
+      savedDebitAccountHierarchy,
     })
 
     let paymentEntries = []
@@ -155,6 +184,14 @@ export default function Payment() {
         console.error("Payment: Error parsing hierarchy:", error)
       }
     }
+
+    if (savedDebitAccountHierarchy && savedDebitAccountHierarchy !== "undefined") {
+      try {
+        setDebitAccountHierarchy(JSON.parse(savedDebitAccountHierarchy))
+      } catch (error) {
+        console.error("Payment: Error parsing debit account hierarchy:", error)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -177,7 +214,14 @@ export default function Payment() {
 
     localStorage.setItem("paymentDebitAccountOptions", JSON.stringify(debitAccountOptions))
     localStorage.setItem("paymentHierarchy", JSON.stringify(paymentHierarchy))
-  }, [entries, debitAccountOptions, paymentHierarchy])
+    localStorage.setItem("paymentDebitAccountHierarchy", JSON.stringify(debitAccountHierarchy))
+  }, [entries, debitAccountOptions, paymentHierarchy, debitAccountHierarchy])
+
+  // Update debitAccountOptions whenever debitAccountHierarchy changes
+  useEffect(() => {
+    const updatedAccounts = flattenHierarchy(debitAccountHierarchy)
+    setDebitAccountOptions(updatedAccounts)
+  }, [debitAccountHierarchy])
 
   const handleSave = (newEntry) => {
     console.log("Payment: handleSave called with:", newEntry)
@@ -228,6 +272,8 @@ export default function Payment() {
           setDebitAccountOptions={setDebitAccountOptions}
           paymentHierarchy={paymentHierarchy}
           setPaymentHierarchy={setPaymentHierarchy}
+          debitAccountHierarchy={debitAccountHierarchy} // Pass the new hierarchy
+          setDebitAccountHierarchy={setDebitAccountHierarchy} // Pass the setter
         />
 
         <div className="mt-12">
@@ -268,12 +314,12 @@ export default function Payment() {
                       <tr key={index} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.date}</td>
                         <td className="px-4 sm:px-6 py-4 text-sm">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <span className="inline-flex items-center rounded-full text-s font-medium text-gray-800">
                             {entry.payment}
                           </span>
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-sm">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center rounded-full text-s font-medium text-gray-800">
                             {entry.account}
                           </span>
                         </td>
@@ -323,3 +369,4 @@ export default function Payment() {
     </div>
   )
 }
+

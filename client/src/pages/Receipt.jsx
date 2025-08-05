@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import ReceiptForm from "../components/ReceiptForm"
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline"
@@ -7,25 +9,53 @@ const defaultReceiptHierarchy = {
   Bank: ["Trust Bank", "NRBC Bank"],
 }
 
-const defaultCreditAccountOptions = [
-  "Service Revenue",
-  "Sales Revenue",
-  "Miscellaneous Income",
-  "Interest Income",
-  "Rent Income",
-  "Commission Income",
-  "Dividend Income",
-  "Other Income",
-  "Accounts Receivable",
-  "Notes Receivable",
-  "Advance from Customer",
-  "Loan Receivable",
-]
+// New hierarchical structure for credit accounts in ReceiptForm
+const defaultCreditAccountHierarchy = {
+  Revenues: [
+    "Sales Revenue",
+    "Service Revenue",
+    "Miscellaneous Income",
+    "Interest Income",
+    "Rent Income",
+    "Commission Income",
+    "Dividend Income",
+  ],
+  Assets: ["Accounts Receivable", "Notes Receivable", "Loan Receivable"],
+  Liabilities: ["Advance from Customer"],
+  Capital: ["Owner's Capital Contribution"],
+}
+
+// Helper to flatten hierarchy into a simple list of account names
+const flattenHierarchy = (hierarchy) => {
+  const accounts = []
+  for (const [key, value] of Object.entries(hierarchy)) {
+    if (Array.isArray(value)) {
+      accounts.push(...value)
+    } else {
+      accounts.push(...flattenHierarchy(value))
+    }
+  }
+  return accounts
+}
 
 export default function Receipt() {
   const [entries, setEntries] = useState([])
   const [editingIndex, setEditingIndex] = useState(null)
-  const [creditAccountOptions, setCreditAccountOptions] = useState(defaultCreditAccountOptions)
+
+  // Manage credit account options and hierarchy
+  const [creditAccountHierarchy, setCreditAccountHierarchy] = useState(() => {
+    const savedHierarchy = localStorage.getItem("receiptCreditAccountHierarchy")
+    return savedHierarchy ? JSON.parse(savedHierarchy) : defaultCreditAccountHierarchy
+  })
+
+  const [creditAccountOptions, setCreditAccountOptions] = useState(() => {
+    const savedAccounts = localStorage.getItem("receiptCreditAccountOptions")
+    if (savedAccounts) return JSON.parse(savedAccounts)
+    const initialAccounts = flattenHierarchy(defaultCreditAccountHierarchy)
+    localStorage.setItem("receiptCreditAccountOptions", JSON.stringify(initialAccounts))
+    return initialAccounts
+  })
+
   const [receiptHierarchy, setReceiptHierarchy] = useState(defaultReceiptHierarchy)
 
   useEffect(() => {
@@ -35,12 +65,14 @@ export default function Receipt() {
     const savedCreditAccounts = localStorage.getItem("receiptCreditAccountOptions")
     const savedHierarchy = localStorage.getItem("receiptHierarchy")
     const savedLedgerEntries = localStorage.getItem("ledgerEntries")
+    const savedCreditAccountHierarchy = localStorage.getItem("receiptCreditAccountHierarchy")
 
     console.log("Receipt: Raw localStorage data:", {
       savedEntries,
       savedCreditAccounts,
       savedHierarchy,
       savedLedgerEntries,
+      savedCreditAccountHierarchy,
     })
 
     let receiptEntries = []
@@ -150,6 +182,14 @@ export default function Receipt() {
         console.error("Receipt: Error parsing hierarchy:", error)
       }
     }
+
+    if (savedCreditAccountHierarchy && savedCreditAccountHierarchy !== "undefined") {
+      try {
+        setCreditAccountHierarchy(JSON.parse(savedCreditAccountHierarchy))
+      } catch (error) {
+        console.error("Receipt: Error parsing credit account hierarchy:", error)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -172,7 +212,14 @@ export default function Receipt() {
 
     localStorage.setItem("receiptCreditAccountOptions", JSON.stringify(creditAccountOptions))
     localStorage.setItem("receiptHierarchy", JSON.stringify(receiptHierarchy))
-  }, [entries, creditAccountOptions, receiptHierarchy])
+    localStorage.setItem("receiptCreditAccountHierarchy", JSON.stringify(creditAccountHierarchy))
+  }, [entries, creditAccountOptions, receiptHierarchy, creditAccountHierarchy])
+
+  // Update creditAccountOptions whenever creditAccountHierarchy changes
+  useEffect(() => {
+    const updatedAccounts = flattenHierarchy(creditAccountHierarchy)
+    setCreditAccountOptions(updatedAccounts)
+  }, [creditAccountHierarchy])
 
   const handleSave = (newEntry) => {
     console.log("Receipt: handleSave called with:", newEntry)
@@ -223,6 +270,8 @@ export default function Receipt() {
           setCreditAccountOptions={setCreditAccountOptions}
           receiptHierarchy={receiptHierarchy}
           setReceiptHierarchy={setReceiptHierarchy}
+          creditAccountHierarchy={creditAccountHierarchy} // Pass the new hierarchy
+          setCreditAccountHierarchy={setCreditAccountHierarchy} // Pass the setter
         />
 
         <div className="mt-12">
@@ -263,12 +312,12 @@ export default function Receipt() {
                       <tr key={index} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.date}</td>
                         <td className="px-4 sm:px-6 py-4 text-sm">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center rounded-full text-s font-medium text-gray-800">
                             {entry.receipt}
                           </span>
                         </td>
                         <td className="px-4 sm:px-6 py-4 text-sm">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <span className="inline-flex items-center rounded-full text-s font-medium text-gray-800">
                             {entry.account}
                           </span>
                         </td>
