@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect, useRef } from "react"
 import { ChevronDownIcon } from "@heroicons/react/24/outline"
 
@@ -11,9 +9,17 @@ const JournalForm = ({
   accountHierarchy,
   setAccountHierarchy,
   // Remove ledgerData prop since we read from localStorage
+  // Remove ledgerData prop since we read from localStorage
 }) => {
   const [journalDate, setJournalDate] = useState("")
+  const [journalDate, setJournalDate] = useState("")
   const [entries, setEntries] = useState([
+    { account: "", type: "Debit", amount: "", openingBalance: 0 },
+    { account: "", type: "Credit", amount: "", openingBalance: 0 },
+  ])
+  const [successMessage, setSuccessMessage] = useState("")
+  const [description, setDescription] = useState("")
+
     { account: "", type: "Debit", amount: "", openingBalance: 0 },
     { account: "", type: "Credit", amount: "", openingBalance: 0 },
   ])
@@ -93,9 +99,85 @@ const JournalForm = ({
     // Return net balance (positive for debit balance, negative for credit balance)
     return totalDebits - totalCredits
   }
+  const dateInputRef = useRef(null)
+  const accountSelectRefs = useRef([])
+  const typeSelectRefs = useRef([])
+  const amountInputRefs = useRef([])
+  const descriptionInputRef = useRef(null)
+  const formRef = useRef(null)
+
+  // Function to calculate opening balance for an account as of a specific date
+  const calculateOpeningBalance = (accountName, journalDate) => {
+    if (!accountName || !journalDate) {
+      return 0
+    }
+
+    // Read ledger entries from localStorage (same as your Ledger component)
+    const savedLedgerEntries = localStorage.getItem("ledgerEntries") || "[]"
+    const savedJournalEntries = localStorage.getItem("journalEntries") || "[]"
+    const allLedgerEntries = JSON.parse(savedLedgerEntries)
+    const journalEntries = JSON.parse(savedJournalEntries)
+
+    // Convert Journal entries from nested structure to Ledger format (same logic as Ledger component)
+    journalEntries.forEach((journalEntry) => {
+      if (journalEntry.entries && Array.isArray(journalEntry.entries)) {
+        journalEntry.entries.forEach((item) => {
+          allLedgerEntries.push({
+            date: journalEntry.date,
+            account: item.account,
+            debit: item.type === "Debit" ? item.amount : 0,
+            credit: item.type === "Credit" ? item.amount : 0,
+            type: "Journal",
+            reference: `Journal-${journalEntry.date}-${item.account}`,
+          })
+        })
+      } else {
+        // Handle flat structure if it exists
+        allLedgerEntries.push({
+          date: journalEntry.date,
+          account: journalEntry.debitAccount,
+          debit: journalEntry.amount,
+          credit: 0,
+          type: "Journal",
+          reference: `Journal-${journalEntry.date}-${journalEntry.debitAccount}`,
+        })
+        allLedgerEntries.push({
+          date: journalEntry.date,
+          account: journalEntry.creditAccount,
+          debit: 0,
+          credit: journalEntry.amount,
+          type: "Journal",
+          reference: `Journal-${journalEntry.date}-${journalEntry.creditAccount}`,
+        })
+      }
+    })
+
+    // Filter entries for the specific account that are BEFORE the journal date
+    const entriesBeforeDate = allLedgerEntries.filter(
+      (entry) => entry.account === accountName && new Date(entry.date) < new Date(journalDate),
+    )
+
+    if (entriesBeforeDate.length === 0) {
+      return 0
+    }
+
+    // Sort entries by date
+    entriesBeforeDate.sort((a, b) => new Date(a.date) - new Date(b.date))
+
+    // Calculate balance using same logic as Ledger component
+    const totalDebits = entriesBeforeDate.reduce((sum, entry) => sum + (entry.debit || 0), 0)
+    const totalCredits = entriesBeforeDate.reduce((sum, entry) => sum + (entry.credit || 0), 0)
+
+    // Return net balance (positive for debit balance, negative for credit balance)
+    return totalDebits - totalCredits
+  }
 
   // Initialize refs arrays
   useEffect(() => {
+    accountSelectRefs.current = accountSelectRefs.current.slice(0, entries.length)
+    typeSelectRefs.current = typeSelectRefs.current.slice(0, entries.length)
+    amountInputRefs.current = amountInputRefs.current.slice(0, entries.length)
+  }, [entries])
     accountSelectRefs.current = accountSelectRefs.current.slice(0, entries.length)
     typeSelectRefs.current = typeSelectRefs.current.slice(0, entries.length)
     amountInputRefs.current = amountInputRefs.current.slice(0, entries.length)
@@ -104,6 +186,9 @@ const JournalForm = ({
   // Initialize form with edit data if provided
   useEffect(() => {
     if (editData) {
+      // Scroll to top when editing
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      
       setJournalDate(editData.date)
       setDescription(editData.description || "")
       const entriesWithBalance = editData.entries.map((entry) => ({
@@ -114,11 +199,28 @@ const JournalForm = ({
     } else {
       setJournalDate("")
       setDescription("")
+      setJournalDate("")
+      setDescription("")
       setEntries([
         { account: "", type: "Debit", amount: "", openingBalance: 0 },
         { account: "", type: "Credit", amount: "", openingBalance: 0 },
       ])
+        { account: "", type: "Debit", amount: "", openingBalance: 0 },
+        { account: "", type: "Credit", amount: "", openingBalance: 0 },
+      ])
     }
+  }, [editData])
+
+  // Recalculate opening balances when journal date changes
+  useEffect(() => {
+    if (journalDate) {
+      const updatedEntries = entries.map((entry) => ({
+        ...entry,
+        openingBalance: entry.account ? calculateOpeningBalance(entry.account, journalDate) : 0,
+      }))
+      setEntries(updatedEntries)
+    }
+  }, [journalDate])
   }, [editData])
 
   // Recalculate opening balances when journal date changes
@@ -137,9 +239,18 @@ const JournalForm = ({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       if (fieldType === "date") {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      if (fieldType === "date") {
         if (accountSelectRefs.current[0]) {
           accountSelectRefs.current[0].focus()
+          accountSelectRefs.current[0].focus()
         }
+      } else if (fieldType === "account") {
+        typeSelectRefs.current[index]?.focus()
+      } else if (fieldType === "type") {
+        amountInputRefs.current[index]?.focus()
+      } else if (fieldType === "amount") {
       } else if (fieldType === "account") {
         typeSelectRefs.current[index]?.focus()
       } else if (fieldType === "type") {
@@ -284,9 +395,10 @@ const JournalForm = ({
     )
   }
 
-  // Account Select Component
+  // Account Select Component - Modified to show existing accounts first
   const AccountSelect = ({ value, onChange, index }) => {
-    const [showHierarchy, setShowHierarchy] = useState(false)
+    const [showDropdown, setShowDropdown] = useState(false)
+    const [showCategoryHierarchy, setShowCategoryHierarchy] = useState(false)
     const [currentCategory, setCurrentCategory] = useState(null)
     const [currentSubcategory, setCurrentSubcategory] = useState(null)
     const [newAccountName, setNewAccountName] = useState("")
@@ -301,7 +413,8 @@ const JournalForm = ({
 
     // Close when clicking outside
     useClickOutside([triggerRef, dropdownRef], () => {
-      setShowHierarchy(false)
+      setShowDropdown(false)
+      setShowCategoryHierarchy(false)
       setCurrentCategory(null)
       setCurrentSubcategory(null)
       setSelectedIndex(-1)
@@ -310,7 +423,8 @@ const JournalForm = ({
     useEffect(() => {
       const handleKeyDown = (e) => {
         if (e.key === "Escape") {
-          setShowHierarchy(false)
+          setShowDropdown(false)
+          setShowCategoryHierarchy(false)
           setCurrentCategory(null)
           setCurrentSubcategory(null)
           setSelectedIndex(-1)
@@ -323,7 +437,7 @@ const JournalForm = ({
 
     // Handle keyboard navigation in dropdown
     const handleDropdownKeyDown = (e) => {
-      if (!showHierarchy) {
+      if (!showDropdown && !showCategoryHierarchy) {
         if (e.key === "Enter") {
           // Track double enter
           setDoubleEnterCount((prev) => prev + 1)
@@ -337,25 +451,31 @@ const JournalForm = ({
           } else if (doubleEnterCount === 1) {
             // Second Enter - open dropdown
             e.preventDefault()
-            setShowHierarchy(true)
-            setSelectedIndex(0)
+            setShowDropdown(true)
+            setSelectedIndex(0) // Start with first item selected
           }
         }
         return
       }
 
       const getCurrentOptions = () => {
-        if (!currentCategory) {
-          return Object.keys(accountHierarchy)
-        } else if (!currentSubcategory) {
-          if (Array.isArray(accountHierarchy[currentCategory])) {
-            return [...accountHierarchy[currentCategory], "+ Add New Account"]
+        if (showDropdown && !showCategoryHierarchy) {
+          // Show existing accounts + "Add new account" button
+          return [...accountOptions, "+ Add New Account"]
+        } else if (showCategoryHierarchy) {
+          if (!currentCategory) {
+            return Object.keys(accountHierarchy)
+          } else if (!currentSubcategory) {
+            if (Array.isArray(accountHierarchy[currentCategory])) {
+              return [...accountHierarchy[currentCategory], "+ Add New Account"]
+            } else {
+              return Object.keys(accountHierarchy[currentCategory])
+            }
           } else {
-            return Object.keys(accountHierarchy[currentCategory])
+            return [...accountHierarchy[currentCategory][currentSubcategory], "+ Add New Account"]
           }
-        } else {
-          return [...accountHierarchy[currentCategory][currentSubcategory], "+ Add New Account"]
         }
+        return []
       }
 
       const currentOptions = getCurrentOptions()
@@ -376,27 +496,40 @@ const JournalForm = ({
     }
 
     const handleOptionSelect = (option) => {
-      if (!currentCategory) {
-        // Selecting category
-        setCurrentCategory(option)
-        setSelectedIndex(0)
-      } else if (!currentSubcategory) {
+      if (showDropdown && !showCategoryHierarchy) {
+        // Handle main dropdown selection
         if (option === "+ Add New Account") {
-          startAddingNewAccount(currentCategory)
-        } else if (Array.isArray(accountHierarchy[currentCategory])) {
-          // Direct account selection
-          handleAccountSelect(option)
-        } else {
-          // Selecting subcategory
-          setCurrentSubcategory(option)
+          setShowDropdown(false)
+          setShowCategoryHierarchy(true)
           setSelectedIndex(0)
-        }
-      } else {
-        if (option === "+ Add New Account") {
-          startAddingNewAccount(currentCategory, currentSubcategory)
         } else {
-          // Final account selection
+          // Select existing account
           handleAccountSelect(option)
+        }
+      } else if (showCategoryHierarchy) {
+        // Handle category hierarchy navigation
+        if (!currentCategory) {
+          // Selecting category
+          setCurrentCategory(option)
+          setSelectedIndex(0)
+        } else if (!currentSubcategory) {
+          if (option === "+ Add New Account") {
+            startAddingNewAccount(currentCategory)
+          } else if (Array.isArray(accountHierarchy[currentCategory])) {
+            // Direct account selection
+            handleAccountSelect(option)
+          } else {
+            // Selecting subcategory
+            setCurrentSubcategory(option)
+            setSelectedIndex(0)
+          }
+        } else {
+          if (option === "+ Add New Account") {
+            startAddingNewAccount(currentCategory, currentSubcategory)
+          } else {
+            // Final account selection
+            handleAccountSelect(option)
+          }
         }
       }
     }
@@ -406,13 +539,19 @@ const JournalForm = ({
       // Update opening balance when account is selected using journal date
       const openingBalance = calculateOpeningBalance(account, journalDate)
       handleChange(index, "openingBalance", openingBalance)
-
-      setShowHierarchy(false)
+      setShowDropdown(false)
+      setShowCategoryHierarchy(false)
       setCurrentCategory(null)
       setCurrentSubcategory(null)
       setSelectedIndex(-1)
       // Auto-focus to type select after account selection
       setTimeout(() => {
+        const typeSelect = typeSelectRefs.current[index]
+        if (typeSelect) {
+          typeSelect.focus()
+        }
+      }, 50)
+    }
         const typeSelect = typeSelectRefs.current[index]
         if (typeSelect) {
           typeSelect.focus()
@@ -425,73 +564,89 @@ const JournalForm = ({
       setNewAccountCategory(category)
       setNewAccountSubcategory(subcategory)
       setNewAccountName("")
-      setShowHierarchy(false)
+      setShowCategoryHierarchy(false)
       setSelectedIndex(-1)
     }
 
     const deleteAccount = (account, category, subcategory = null) => {
       const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy))
+      const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy))
       if (subcategory) {
+        updatedHierarchy[category][subcategory] = updatedHierarchy[category][subcategory].filter(
+          (acc) => acc !== account,
+        )
         updatedHierarchy[category][subcategory] = updatedHierarchy[category][subcategory].filter(
           (acc) => acc !== account,
         )
       } else if (Array.isArray(updatedHierarchy[category])) {
         updatedHierarchy[category] = updatedHierarchy[category].filter((acc) => acc !== account)
-      } else {
-        if (updatedHierarchy[category]?.["Other"]) {
-          updatedHierarchy[category]["Other"] = updatedHierarchy[category]["Other"].filter((acc) => acc !== account)
-        }
       }
       setAccountHierarchy(updatedHierarchy)
       const updatedAccounts = accountOptions.filter((acc) => acc !== account)
       setAccountOptions(updatedAccounts)
       if (value === account) {
         onChange("")
+        onChange("")
       }
+    }
     }
 
     const getAllAccountsFromHierarchy = (hierarchy) => {
       let accounts = []
+      let accounts = []
       for (const category in hierarchy) {
         if (Array.isArray(hierarchy[category])) {
           accounts = [...accounts, ...hierarchy[category]]
+          accounts = [...accounts, ...hierarchy[category]]
         } else {
           for (const subcategory in hierarchy[category]) {
+            accounts = [...accounts, ...hierarchy[category][subcategory]]
             accounts = [...accounts, ...hierarchy[category][subcategory]]
           }
         }
       }
       return accounts
     }
+      return accounts
+    }
 
     const saveNewAccount = () => {
       try {
         const trimmedName = newAccountName.trim()
+        const trimmedName = newAccountName.trim()
         if (!trimmedName) {
+          alert("Please enter an account name")
+          return
           alert("Please enter an account name")
           return
         }
         const allAccounts = getAllAccountsFromHierarchy(accountHierarchy)
+        const allAccounts = getAllAccountsFromHierarchy(accountHierarchy)
         if (allAccounts.includes(trimmedName)) {
           alert("Account name already exists")
           return
+          alert("Account name already exists")
+          return
         }
+
         const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy))
         if (newAccountSubcategory) {
           if (!updatedHierarchy[newAccountCategory]?.[newAccountSubcategory]) {
             updatedHierarchy[newAccountCategory][newAccountSubcategory] = []
+            updatedHierarchy[newAccountCategory][newAccountSubcategory] = []
           }
+          updatedHierarchy[newAccountCategory][newAccountSubcategory].push(trimmedName)
           updatedHierarchy[newAccountCategory][newAccountSubcategory].push(trimmedName)
         } else if (Array.isArray(updatedHierarchy[newAccountCategory])) {
           updatedHierarchy[newAccountCategory].push(trimmedName)
+          updatedHierarchy[newAccountCategory].push(trimmedName)
         } else {
-          if (!updatedHierarchy[newAccountCategory]) {
-            updatedHierarchy[newAccountCategory] = { Other: [] }
-          } else if (!updatedHierarchy[newAccountCategory]["Other"]) {
-            updatedHierarchy[newAccountCategory]["Other"] = []
-          }
-          updatedHierarchy[newAccountCategory]["Other"].push(trimmedName)
+          // If newAccountSubcategory is null, and updatedHierarchy[newAccountCategory] is an object (has subcategories),
+          // then a subcategory must be selected. Prevent adding and alert the user.
+          alert("Please select a subcategory for this account type.")
+          return // Stop the function execution
         }
+
         setAccountHierarchy(updatedHierarchy)
         const updatedAccounts = [...new Set([...accountOptions, trimmedName])]
         setAccountOptions(updatedAccounts)
@@ -504,7 +659,11 @@ const JournalForm = ({
         setTimeout(() => {
           typeSelectRefs.current[index]?.focus()
         }, 0)
+          typeSelectRefs.current[index]?.focus()
+        }, 0)
       } catch (error) {
+        console.error("Error saving new account:", error)
+        alert("An error occurred while saving the new account")
         console.error("Error saving new account:", error)
         alert("An error occurred while saving the new account")
       }
@@ -519,24 +678,161 @@ const JournalForm = ({
       }
     }
 
-    const renderCategoryOptions = () => (
+    const renderExistingAccounts = () => (
       <>
-        <div className="font-semibold mb-2 text-gray-700 px-2">Main Categories</div>
-        {Object.keys(accountHierarchy).map((category, idx) => (
+        <div className="font-semibold mb-2 text-gray-700 px-2">Select Account</div>
+        {accountOptions.map((account, idx) => (
           <div
-            key={category}
-            onClick={() => handleOptionSelect(category)}
+            key={account}
             className={`p-2 cursor-pointer flex justify-between items-center ${
               selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
             }`}
           >
-            <span>{category}</span>
-            <span className="text-gray-500">→</span>
+            <span onClick={() => handleAccountSelect(account)} className="flex-grow">
+              {account}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                // Find the account in hierarchy and delete it
+                const allAccounts = getAllAccountsFromHierarchy(accountHierarchy)
+                if (allAccounts.includes(account)) {
+                  // Find which category/subcategory this account belongs to
+                  for (const category in accountHierarchy) {
+                    if (Array.isArray(accountHierarchy[category])) {
+                      if (accountHierarchy[category].includes(account)) {
+                        deleteAccount(account, category)
+                        return
+                      }
+                    } else {
+                      for (const subcategory in accountHierarchy[category]) {
+                        if (accountHierarchy[category][subcategory].includes(account)) {
+                          deleteAccount(account, category, subcategory)
+                          return
+                        }
+                      }
+                    }
+                  }
+                }
+              }}
+              className="text-red-500 hover:text-red-700 ml-2"
+              title="Delete account"
+            >
+              −
+            </button>
           </div>
         ))}
+        <div
+          onClick={() => handleOptionSelect("+ Add New Account")}
+          className={`p-2 cursor-pointer text-blue-600 font-semibold border-t border-gray-200 ${
+            selectedIndex === accountOptions.length ? "bg-blue-100" : "hover:bg-gray-100"
+          }`}
+        >
+          + Add New Account
+        </div>
       </>
     )
 
+    const renderCategoryOptions = () => (
+      <>
+        <div
+          onClick={() => {
+            setShowCategoryHierarchy(false)
+            setShowDropdown(true)
+            setSelectedIndex(0)
+          }}
+          className="p-2 border border-transparent hover:border-blue-400 cursor-pointer flex items-center text-blue-600 rounded-md transition-colors duration-200"
+        >
+          ← Back to Accounts
+        </div>
+        <div className="font-semibold mb-2 text-gray-700 px-2">Select Category</div>
+        {Object.keys(accountHierarchy)
+          .filter(category => category !== "Other") // <--- ADDED THIS LINE
+          .map((category, idx) => (
+            <div
+              key={category}
+              onClick={() => handleOptionSelect(category)}
+              className={`p-2 cursor-pointer flex justify-between items-center ${
+                selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+              }`}
+            >
+              <span>{category}</span>
+              <span className="text-gray-500">→</span>
+            </div>
+          ))}
+      </>
+    )
+    )
+
+    const renderSubcategoryOptions = () => {
+      const options = Array.isArray(accountHierarchy[currentCategory])
+        ? [...accountHierarchy[currentCategory], "+ Add New Account"]
+        : Object.keys(accountHierarchy[currentCategory])
+
+      return (
+        <>
+          <div
+            onClick={() => {
+              setCurrentCategory(null)
+              setSelectedIndex(0)
+            }}
+            className="p-2 border border-transparent hover:border-blue-400 cursor-pointer flex items-center text-blue-600 rounded-md transition-colors duration-200"
+          >
+            ← Back to Categories
+          </div>
+          <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-gray-800 text-center py-1">
+            {currentCategory}
+          </div>
+          {Array.isArray(accountHierarchy[currentCategory]) ? (
+            <>
+              {accountHierarchy[currentCategory].map((account, idx) => (
+                <div
+                  key={account}
+                  className={`p-2 cursor-pointer flex justify-between items-center ${
+                    selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                  }`}
+                >
+                  <span onClick={() => handleAccountSelect(account)} className="flex-grow">
+                    {account}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteAccount(account, currentCategory)
+                    }}
+                    className="text-red-500 hover:text-red-700 ml-2"
+                    title="Delete account"
+                  >
+                    −
+                  </button>
+                </div>
+              ))}
+              <div
+                onClick={() => handleOptionSelect("+ Add New Account")}
+                className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
+                  selectedIndex === accountHierarchy[currentCategory].length ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
+              >
+                + Add New Account
+              </div>
+            </>
+          ) : (
+            Object.keys(accountHierarchy[currentCategory]).map((subcategory, idx) => (
+              <div
+                key={subcategory}
+                onClick={() => handleOptionSelect(subcategory)}
+                className={`p-2 cursor-pointer flex justify-between items-center ${
+                  selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
+              >
+                <span>{subcategory}</span>
+                <span className="text-gray-500">→</span>
+              </div>
+            ))
+          )}
+        </>
+      )
+    }
     const renderSubcategoryOptions = () => {
       const options = Array.isArray(accountHierarchy[currentCategory])
         ? [...accountHierarchy[currentCategory], "+ Add New Account"]
@@ -609,9 +905,14 @@ const JournalForm = ({
 
     const renderAccountOptions = () => {
       const accounts = accountHierarchy[currentCategory][currentSubcategory]
+      const accounts = accountHierarchy[currentCategory][currentSubcategory]
       return (
         <>
           <div
+            onClick={() => {
+              setCurrentSubcategory(null)
+              setSelectedIndex(0)
+            }}
             onClick={() => {
               setCurrentSubcategory(null)
               setSelectedIndex(0)
@@ -621,15 +922,21 @@ const JournalForm = ({
             ← Back to {currentCategory}
           </div>
           <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-gray-800 text-center py-1">
+          <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-gray-800 text-center py-1">
             {currentSubcategory}
           </div>
+          {accounts.map((account, idx) => (
           {accounts.map((account, idx) => (
             <div
               key={account}
               className={`p-2 cursor-pointer flex justify-between items-center ${
                 selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
               }`}
+              className={`p-2 cursor-pointer flex justify-between items-center ${
+                selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+              }`}
             >
+              <span onClick={() => handleAccountSelect(account)} className="flex-grow">
               <span onClick={() => handleAccountSelect(account)} className="flex-grow">
                 {account}
               </span>
@@ -637,9 +944,12 @@ const JournalForm = ({
                 onClick={(e) => {
                   e.stopPropagation()
                   deleteAccount(account, currentCategory, currentSubcategory)
+                  e.stopPropagation()
+                  deleteAccount(account, currentCategory, currentSubcategory)
                 }}
                 className="text-red-500 hover:text-red-700 ml-2"
                 title="Delete account"
+              >
               >
                 −
               </button>
@@ -650,10 +960,18 @@ const JournalForm = ({
             className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
               selectedIndex === accounts.length ? "bg-blue-100" : "hover:bg-gray-100"
             }`}
+          <div
+            onClick={() => handleOptionSelect("+ Add New Account")}
+            className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
+              selectedIndex === accounts.length ? "bg-blue-100" : "hover:bg-gray-100"
+            }`}
           >
             + Add New Account
           </div>
+          </div>
         </>
+      )
+    }
       )
     }
 
@@ -661,25 +979,44 @@ const JournalForm = ({
       <div
         className="relative"
         ref={(el) => (accountSelectRefs.current[index] = el)}
+      <div
+        className="relative"
+        ref={(el) => (accountSelectRefs.current[index] = el)}
         tabIndex={0}
+        onKeyDown={handleDropdownKeyDown}
         onKeyDown={handleDropdownKeyDown}
       >
         <div
           ref={triggerRef}
           onClick={() => {
-            setShowHierarchy(!showHierarchy)
-            if (!showHierarchy) {
-              setSelectedIndex(0)
+            if (!showDropdown) {
+              setShowDropdown(true)
+              setSelectedIndex(0) // Always start with first item selected
+            } else {
+              setShowDropdown(false)
+              setSelectedIndex(-1)
             }
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer flex justify-between items-center focus:ring-2 focus:ring-blue-500 focus:outline-none hover:bg-gray-50"
         >
           <span className={value ? "text-gray-900" : "text-gray-500"}>{value || "Select Account"}</span>
           <ChevronDownIcon
-            className={`h-4 w-4 text-gray-500 transition-transform ${showHierarchy ? "transform rotate-180" : ""}`}
+            className={`h-4 w-4 text-gray-500 transition-transform ${showDropdown || showCategoryHierarchy ? "transform rotate-180" : ""}`}
           />
         </div>
-        {showHierarchy && !isAddingNewAccount && (
+
+        {/* Main dropdown showing existing accounts */}
+        {showDropdown && !showCategoryHierarchy && !isAddingNewAccount && (
+          <div
+            ref={dropdownRef}
+            className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
+          >
+            {renderExistingAccounts()}
+          </div>
+        )}
+
+        {/* Category hierarchy dropdown */}
+        {showCategoryHierarchy && !isAddingNewAccount && (
           <div
             ref={dropdownRef}
             className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
@@ -687,17 +1024,24 @@ const JournalForm = ({
             {!currentCategory
               ? renderCategoryOptions()
               : !currentSubcategory
+            {!currentCategory
+              ? renderCategoryOptions()
+              : !currentSubcategory
                 ? renderSubcategoryOptions()
                 : renderAccountOptions()}
           </div>
         )}
+
+        {/* Add new account input */}
         {isAddingNewAccount && (
           <div className="flex items-center gap-2 mt-2">
             <input
               ref={newAccountInputRef}
+              ref={newAccountInputRef}
               type="text"
               value={newAccountName}
               onChange={(e) => setNewAccountName(e.target.value)}
+              onKeyDown={handleNewAccountKeyDown}
               onKeyDown={handleNewAccountKeyDown}
               placeholder="Enter new account name"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -722,8 +1066,12 @@ const JournalForm = ({
       </div>
     )
   }
+    )
+  }
 
   const addRow = () => {
+    setEntries([...entries, { account: "", type: "Debit", amount: "", openingBalance: 0 }])
+  }
     setEntries([...entries, { account: "", type: "Debit", amount: "", openingBalance: 0 }])
   }
 
@@ -731,7 +1079,13 @@ const JournalForm = ({
     if (entries.length <= 2) {
       alert("You must have at least one debit and one credit entry")
       return
+      alert("You must have at least one debit and one credit entry")
+      return
     }
+    const updated = [...entries]
+    updated.splice(index, 1)
+    setEntries(updated)
+  }
     const updated = [...entries]
     updated.splice(index, 1)
     setEntries(updated)
@@ -740,84 +1094,114 @@ const JournalForm = ({
   const handleChange = (index, field, value) => {
     const updated = [...entries]
     updated[index][field] = value
-
     // If account is changed, update opening balance using the journal date
     if (field === "account") {
       updated[index]["openingBalance"] = calculateOpeningBalance(value, journalDate)
     }
-
     setEntries(updated)
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    e.preventDefault()
     if (!journalDate) {
       alert("Please select a journal date")
       return
+      alert("Please select a journal date")
+      return
     }
+
     for (const entry of entries) {
       if (!entry.account || !entry.amount) {
         alert("Please fill all account fields and amounts")
         return
+        alert("Please fill all account fields and amounts")
+        return
       }
     }
+
     for (const entry of entries) {
       if (isNaN(entry.amount)) {
+        alert("Amount must be a number")
+        return
         alert("Amount must be a number")
         return
       }
       if (Number.parseFloat(entry.amount) <= 0) {
         alert("Amount must be greater than 0")
         return
+      if (Number.parseFloat(entry.amount) <= 0) {
+        alert("Amount must be greater than 0")
+        return
       }
     }
+
     const totalDebit = entries
       .filter((entry) => entry.type === "Debit")
+      .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0)
       .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0)
     const totalCredit = entries
       .filter((entry) => entry.type === "Credit")
       .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0)
+
     if (totalDebit !== totalCredit) {
       alert(`Total debits (${totalDebit}) must equal total credits (${totalCredit})`)
       return
+      alert(`Total debits (${totalDebit}) must equal total credits (${totalCredit})`)
+      return
     }
+
     const newEntry = {
       date: journalDate,
       description: description,
       entries: entries.map((entry) => ({
         ...entry,
         amount: Number.parseFloat(entry.amount),
+        amount: Number.parseFloat(entry.amount),
       })),
     }
+
     if (onSave) {
       onSave(newEntry)
+      onSave(newEntry)
     }
+
     setSuccessMessage(editData ? "Journal entry updated successfully!" : "Journal entry created successfully!")
     setTimeout(() => {
       setSuccessMessage("")
     }, 3000)
+
     if (!editData) {
+      setJournalDate("")
+      setDescription("")
       setJournalDate("")
       setDescription("")
       setEntries([
         { account: "", type: "Debit", amount: "", openingBalance: 0 },
         { account: "", type: "Credit", amount: "", openingBalance: 0 },
       ])
+        { account: "", type: "Debit", amount: "", openingBalance: 0 },
+        { account: "", type: "Credit", amount: "", openingBalance: 0 },
+      ])
     }
+  }
   }
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-center text-xl font-bold mb-4">{editData ? "Edit Journal Entry" : "Add Journal Entry"}</h2>
       {successMessage && <div className="text-green-700 text-center font-semibold mb-4">{successMessage}</div>}
+
       <div className="flex justify-center mb-8">
         <div className="flex items-center gap-8">
+          <label className="text-sm font-medium text-gray-700">Journal Date</label>
           <label className="text-sm font-medium text-gray-700">Journal Date</label>
           <input
             ref={dateInputRef}
             type="date"
             value={journalDate}
             onChange={(e) => setJournalDate(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, 0, "date")}
             onKeyDown={(e) => handleKeyDown(e, 0, "date")}
             className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
             required
@@ -826,7 +1210,11 @@ const JournalForm = ({
       </div>
 
       {/* Updated grid header with Opening Balance column */}
+      {/* Updated grid header with Opening Balance column */}
       <div className="grid grid-cols-12 gap-2 mb-2 text-sm font-medium text-gray-700">
+        <div className="col-span-4 text-center">Account</div>
+        <div className="col-span-2 text-center">Opening Balance</div>
+        <div className="col-span-2 text-center">Type</div>
         <div className="col-span-4 text-center">Account</div>
         <div className="col-span-2 text-center">Opening Balance</div>
         <div className="col-span-2 text-center">Type</div>
@@ -837,13 +1225,13 @@ const JournalForm = ({
       {entries.map((entry, index) => (
         <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-center">
           <div className="col-span-4">
+          <div className="col-span-4">
             <AccountSelect
               value={entry.account}
               onChange={(value) => handleChange(index, "account", value)}
               index={index}
             />
           </div>
-
           {/* Opening Balance Display */}
           <div className="col-span-2">
             <div className="w-full p-2 border border-gray-200 rounded-md bg-gray-50 text-center font-medium text-sm">
@@ -856,16 +1244,18 @@ const JournalForm = ({
               )}
             </div>
           </div>
-
           <div className="col-span-2">
             <TypeSelect value={entry.type} onChange={(value) => handleChange(index, "type", value)} index={index} />
           </div>
           <div className="col-span-3">
             <input
               ref={(el) => (amountInputRefs.current[index] = el)}
+              ref={(el) => (amountInputRefs.current[index] = el)}
               type="number"
               value={entry.amount}
               onChange={(e) => handleChange(index, "amount", e.target.value)}
+              onKeyDown={(e) => handleKeyDown(e, index, "amount")}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
               onKeyDown={(e) => handleKeyDown(e, index, "amount")}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="0.00"
@@ -892,17 +1282,20 @@ const JournalForm = ({
         type="button"
         onClick={addRow}
         className="mb-6 px-4 py-2 border border-blue-300 rounded-md text-blue-700 bg-blue-50 shadow-sm flex items-center hover:bg-blue-100 transition-colors"
+        className="mb-6 px-4 py-2 border border-blue-300 rounded-md text-blue-700 bg-blue-50 shadow-sm flex items-center hover:bg-blue-100 transition-colors"
       >
         <span className="mr-1">+</span>Add Account
       </button>
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
         <input
           ref={descriptionInputRef}
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, 0, "description")}
           onKeyDown={(e) => handleKeyDown(e, 0, "description")}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
           placeholder="Enter a description for this journal entry"
@@ -913,13 +1306,24 @@ const JournalForm = ({
         <button
           type="button"
           onClick={() => {
-            setJournalDate("")
-            setDescription("")
-            setEntries([
-              { account: "", type: "Debit", amount: "", openingBalance: 0 },
-              { account: "", type: "Credit", amount: "", openingBalance: 0 },
-            ])
-            if (editData) onSave(null)
+            if (editData) {
+              // For edit mode, just reset to original values without calling onSave(null)
+              setJournalDate(editData.date)
+              setDescription(editData.description || "")
+              const entriesWithBalance = editData.entries.map((entry) => ({
+                ...entry,
+                openingBalance: calculateOpeningBalance(entry.account, editData.date),
+              }))
+              setEntries(entriesWithBalance)
+            } else {
+              // For new entry mode, clear the form
+              setJournalDate("")
+              setDescription("")
+              setEntries([
+                { account: "", type: "Debit", amount: "", openingBalance: 0 },
+                { account: "", type: "Credit", amount: "", openingBalance: 0 },
+              ])
+            }
           }}
           className="px-4 py-2 border border-red-300 text-red-700 bg-red-50 shadow-sm rounded-md hover:bg-red-100 transition"
         >
@@ -935,5 +1339,8 @@ const JournalForm = ({
     </form>
   )
 }
+  )
+}
 
+export default JournalForm
 export default JournalForm
