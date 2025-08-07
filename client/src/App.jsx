@@ -7,6 +7,8 @@ import Journal from './pages/Journal';
 import Ledger from './pages/Ledger';
 import Payment from './pages/Payment';
 import Receipt from './pages/Receipt';
+import BalanceSheet from './pages/report/BalanceSheet';
+import IncomeStatement from './pages/report/IncomeStatement';
 import Reports from './pages/Reports';
 import TrialBalance from './pages/TrialBalance';
 
@@ -32,6 +34,9 @@ function App() {
               <Route path="/reports" element={<Reports />} />
               <Route path="/receipt" element={<Receipt />} />
               <Route path="/payment" element={<Payment />} />
+              <Route path="/reports/income-statement" element={<IncomeStatement />} />
+              <Route path="/reports/balance-sheet" element={<BalanceSheet />} />
+
             </>
           ) : (
             <Route path="*" element={<Navigate to="/login" />} />
