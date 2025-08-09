@@ -267,20 +267,11 @@ const AccountSelect = forwardRef(
 
     const deleteAccount = (account, category, subcategory = null) => {
       const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy))
-      const updatedHierarchy = JSON.parse(JSON.stringify(accountHierarchy))
       if (subcategory) {
         updatedHierarchy[category][subcategory] = updatedHierarchy[category][subcategory].filter(
           (acc) => acc !== account,
         )
-        updatedHierarchy[category][subcategory] = updatedHierarchy[category][subcategory].filter(
-          (acc) => acc !== account,
-        )
       } else if (Array.isArray(updatedHierarchy[category])) {
-        updatedHierarchy[category] = updatedHierarchy[category].filter((acc) => acc !== account)
-      }
-      setAccountHierarchy(updatedHierarchy)
-      const updatedAccounts = accountOptions.filter((acc) => acc !== account)
-      setAccountOptions(updatedAccounts)
         updatedHierarchy[category] = updatedHierarchy[category].filter((acc) => acc !== account)
       }
       setAccountHierarchy(updatedHierarchy)
@@ -296,38 +287,27 @@ const AccountSelect = forwardRef(
 
     const getAllAccountsFromHierarchy = (hierarchy) => {
       let accounts = []
-      let accounts = []
       for (const category in hierarchy) {
         if (Array.isArray(hierarchy[category])) {
           accounts = [...accounts, ...hierarchy[category]]
-          accounts = [...accounts, ...hierarchy[category]]
         } else {
           for (const subcategory in hierarchy[category]) {
-            accounts = [...accounts, ...hierarchy[category][subcategory]]
             accounts = [...accounts, ...hierarchy[category][subcategory]]
           }
         }
       }
       return accounts
     }
-      return accounts
-    }
 
     const saveNewAccount = () => {
       try {
         const trimmedName = newAccountName.trim()
-        const trimmedName = newAccountName.trim()
         if (!trimmedName) {
-          alert("Please enter an account name")
-          return
           alert("Please enter an account name")
           return
         }
         const allAccounts = getAllAccountsFromHierarchy(accountHierarchy)
-        const allAccounts = getAllAccountsFromHierarchy(accountHierarchy)
         if (allAccounts.includes(trimmedName)) {
-          alert("Account name already exists")
-          return
           alert("Account name already exists")
           return
         }
@@ -335,12 +315,9 @@ const AccountSelect = forwardRef(
         if (newAccountSubcategory) {
           if (!updatedHierarchy[newAccountCategory]?.[newAccountSubcategory]) {
             updatedHierarchy[newAccountCategory][newAccountSubcategory] = []
-            updatedHierarchy[newAccountCategory][newAccountSubcategory] = []
           }
           updatedHierarchy[newAccountCategory][newAccountSubcategory].push(trimmedName)
-          updatedHierarchy[newAccountCategory][newAccountSubcategory].push(trimmedName)
         } else if (Array.isArray(updatedHierarchy[newAccountCategory])) {
-          updatedHierarchy[newAccountCategory].push(trimmedName)
           updatedHierarchy[newAccountCategory].push(trimmedName)
         } else {
           alert("Please select a subcategory for this account type.")
@@ -454,7 +431,6 @@ const AccountSelect = forwardRef(
           ))}
       </>
     )
-    )
 
     const renderSubcategoryOptions = () => {
       const options = Array.isArray(accountHierarchy[currentCategory])
@@ -526,14 +502,9 @@ const AccountSelect = forwardRef(
 
     const renderAccountOptions = () => {
       const accounts = accountHierarchy[currentCategory][currentSubcategory]
-      const accounts = accountHierarchy[currentCategory][currentSubcategory]
       return (
         <>
           <div
-            onClick={() => {
-              setCurrentSubcategory(null)
-              setSelectedIndex(0)
-            }}
             onClick={() => {
               setCurrentSubcategory(null)
               setSelectedIndex(0)
@@ -543,10 +514,8 @@ const AccountSelect = forwardRef(
             ← Back to {currentCategory}
           </div>
           <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-gray-800 text-center py-1">
-          <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-gray-800 text-center py-1">
             {currentSubcategory}
           </div>
-          {accounts.map((account, idx) => (
           {accounts.map((account, idx) => (
             <div
               key={account}
@@ -560,12 +529,9 @@ const AccountSelect = forwardRef(
                 onClick={(e) => {
                   e.stopPropagation()
                   deleteAccount(account, currentCategory, currentSubcategory)
-                  e.stopPropagation()
-                  deleteAccount(account, currentCategory, currentSubcategory)
                 }}
                 className="text-red-500 hover:text-red-700 ml-2"
                 title="Delete account"
-              >
               >
                 −
               </button>
@@ -576,18 +542,10 @@ const AccountSelect = forwardRef(
             className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
               selectedIndex === accounts.length ? "bg-blue-100" : "hover:bg-gray-100"
             }`}
-          <div
-            onClick={() => handleOptionSelect("+ Add New Account")}
-            className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
-              selectedIndex === accounts.length ? "bg-blue-100" : "hover:bg-gray-100"
-            }`}
           >
             + Add New Account
           </div>
-          </div>
         </>
-      )
-    }
       )
     }
 
@@ -623,25 +581,19 @@ const AccountSelect = forwardRef(
             {!currentCategory
               ? renderCategoryOptions()
               : !currentSubcategory
-            {!currentCategory
-              ? renderCategoryOptions()
-              : !currentSubcategory
                 ? renderSubcategoryOptions()
                 : renderAccountOptions()}
           </div>
         )}
 
         {/* Add new account input */}
-        {/* Add new account input */}
         {isAddingNewAccount && (
           <div className="flex items-center gap-2 mt-2">
             <input
               ref={newAccountInputRef}
-              ref={newAccountInputRef}
               type="text"
               value={newAccountName}
               onChange={(e) => setNewAccountName(e.target.value)}
-              onKeyDown={handleNewAccountKeyDown}
               onKeyDown={handleNewAccountKeyDown}
               placeholder="Enter new account name"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -985,34 +937,18 @@ const JournalForm = ({
   const addRow = () => {
     setEntries([...entries, { account: "", type: "Debit", amount: "", openingBalance: 0 }])
   }
-    setEntries([...entries, { account: "", type: "Debit", amount: "", openingBalance: 0 }])
-  }
 
   const removeRow = (index) => {
     if (entries.length <= 2) {
       alert("You must have at least one debit and one credit entry")
       return
-      alert("You must have at least one debit and one credit entry")
-      return
     }
-    const updated = [...entries]
-    updated.splice(index, 1)
-    setEntries(updated)
-  }
     const updated = [...entries]
     updated.splice(index, 1)
     setEntries(updated)
   }
 
   const handleChange = (index, field, value) => {
-    const updated = [...entries]
-    updated[index][field] = value
-    // If account is changed, update opening balance using the journal date
-    if (field === "account") {
-      updated[index]["openingBalance"] = calculateOpeningBalance(value, journalDate)
-    }
-    setEntries(updated)
-  }
     const updated = [...entries]
     updated[index][field] = value
     // If account is changed, update opening balance using the journal date
@@ -1058,10 +994,8 @@ const JournalForm = ({
     const totalDebit = entries
       .filter((entry) => entry.type === "Debit")
       .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0)
-      .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0)
     const totalCredit = entries
       .filter((entry) => entry.type === "Credit")
-      .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0)
       .reduce((sum, entry) => sum + Number.parseFloat(entry.amount), 0)
 
     if (totalDebit !== totalCredit) {
@@ -1077,38 +1011,26 @@ const JournalForm = ({
       entries: entries.map((entry) => ({
         ...entry,
         amount: Number.parseFloat(entry.amount),
-        amount: Number.parseFloat(entry.amount),
       })),
-    }
     }
 
     if (onSave) {
       onSave(newEntry)
-      onSave(newEntry)
     }
 
     setSuccessMessage(editData ? "Journal entry updated successfully!" : "Journal entry created successfully!")
-    setSuccessMessage(editData ? "Journal entry updated successfully!" : "Journal entry created successfully!")
     setTimeout(() => {
-      setSuccessMessage("")
-    }, 3000)
       setSuccessMessage("")
     }, 3000)
 
     if (!editData) {
       setJournalDate("")
       setDescription("")
-      setJournalDate("")
-      setDescription("")
       setEntries([
         { account: "", type: "Debit", amount: "", openingBalance: 0 },
         { account: "", type: "Credit", amount: "", openingBalance: 0 },
       ])
-        { account: "", type: "Debit", amount: "", openingBalance: 0 },
-        { account: "", type: "Credit", amount: "", openingBalance: 0 },
-      ])
     }
-  }
   }
 
   return (
@@ -1118,13 +1040,11 @@ const JournalForm = ({
       <div className="flex justify-center mb-8">
         <div className="flex items-center gap-8">
           <label className="text-sm font-medium text-gray-700">Journal Date</label>
-          <label className="text-sm font-medium text-gray-700">Journal Date</label>
           <input
             ref={dateInputRef}
             type="date"
             value={journalDate}
             onChange={(e) => setJournalDate(e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, 0, "date")}
             onKeyDown={(e) => handleKeyDown(e, 0, "date")}
             className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
             required
@@ -1133,11 +1053,7 @@ const JournalForm = ({
       </div>
 
       {/* Updated grid header with Opening Balance column */}
-      {/* Updated grid header with Opening Balance column */}
       <div className="grid grid-cols-12 gap-2 mb-2 text-sm font-medium text-gray-700">
-        <div className="col-span-4 text-center">Account</div>
-        <div className="col-span-2 text-center">Opening Balance</div>
-        <div className="col-span-2 text-center">Type</div>
         <div className="col-span-4 text-center">Account</div>
         <div className="col-span-2 text-center">Opening Balance</div>
         <div className="col-span-2 text-center">Type</div>
@@ -1147,7 +1063,6 @@ const JournalForm = ({
 
       {entries.map((entry, index) => (
         <div key={index} className="grid grid-cols-12 gap-2 mb-2 items-center">
-          <div className="col-span-4">
           <div className="col-span-4">
             <AccountSelect
               value={entry.account}
@@ -1188,12 +1103,9 @@ const JournalForm = ({
           <div className="col-span-3">
             <input
               ref={(el) => (amountInputRefs.current[index] = el)}
-              ref={(el) => (amountInputRefs.current[index] = el)}
               type="number"
               value={entry.amount}
               onChange={(e) => handleChange(index, "amount", e.target.value)}
-              onKeyDown={(e) => handleKeyDown(e, index, "amount")}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
               onKeyDown={(e) => handleKeyDown(e, index, "amount")}
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="0.00"
@@ -1219,19 +1131,16 @@ const JournalForm = ({
         type="button"
         onClick={addRow}
         className="mb-6 px-4 py-2 border border-blue-300 rounded-md text-blue-700 bg-blue-50 shadow-sm flex items-center hover:bg-blue-100 transition-colors"
-        className="mb-6 px-4 py-2 border border-blue-300 rounded-md text-blue-700 bg-blue-50 shadow-sm flex items-center hover:bg-blue-100 transition-colors"
       >
         <span className="mr-1">+</span>Add Account
       </button>
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
         <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
         <input
           ref={descriptionInputRef}
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, 0, "description")}
           onKeyDown={(e) => handleKeyDown(e, 0, "description")}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
           placeholder="Enter a description for this journal entry"
@@ -1241,24 +1150,6 @@ const JournalForm = ({
         <button
           type="button"
           onClick={() => {
-            if (editData) {
-              // For edit mode, just reset to original values without calling onSave(null)
-              setJournalDate(editData.date)
-              setDescription(editData.description || "")
-              const entriesWithBalance = editData.entries.map((entry) => ({
-                ...entry,
-                openingBalance: calculateOpeningBalance(entry.account, editData.date),
-              }))
-              setEntries(entriesWithBalance)
-            } else {
-              // For new entry mode, clear the form
-              setJournalDate("")
-              setDescription("")
-              setEntries([
-                { account: "", type: "Debit", amount: "", openingBalance: 0 },
-                { account: "", type: "Credit", amount: "", openingBalance: 0 },
-              ])
-            }
             if (editData) {
               // For edit mode, just reset to original values without calling onSave(null)
               setJournalDate(editData.date)
@@ -1292,9 +1183,5 @@ const JournalForm = ({
     </form>
   )
 }
-  )
-}
-
-export default JournalForm
 
 export default JournalForm
