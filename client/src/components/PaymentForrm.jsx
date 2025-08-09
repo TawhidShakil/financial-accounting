@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react"
 
-const categoryOptions = ["Asset", "Expense", "Revenue", "Liability", "Capital"];
+const categoryOptions = ["Asset", "Expense", "Revenue", "Liability", "Capital"]
 
 const PaymentForm = ({
   onSave,
@@ -10,121 +10,126 @@ const PaymentForm = ({
   paymentHierarchy,
   setPaymentHierarchy,
 }) => {
-  const [paymentDate, setPaymentDate] = useState("");
-  const [payment, setPayment] = useState("");
-  const [account, setAccount] = useState("");
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [paymentDate, setPaymentDate] = useState("")
+  const [payment, setPayment] = useState("")
+  const [account, setAccount] = useState("")
+  const [amount, setAmount] = useState("")
+  const [description, setDescription] = useState("")
+  const [category, setCategory] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
 
-  // Refs for Enter key navigation
-  const dateRef = useRef(null);
-  const paymentRef = useRef(null);
-  const accountRef = useRef(null);
-  const amountRef = useRef(null);
-  const descriptionRef = useRef(null);
-  const submitRef = useRef(null);
+  // Refs for Enter key navigation and focus on error
+  const dateRef = useRef(null)
+  const paymentRef = useRef(null)
+  const accountRef = useRef(null)
+  const amountRef = useRef(null)
+  const descriptionRef = useRef(null)
+  const submitRef = useRef(null)
+  const categoryRef = useRef(null) // New ref for category select
+
+  // Focus journal date on initial load
+  useEffect(() => {
+    dateRef.current?.focus()
+  }, [])
 
   // Initialize form with edit data if provided
   useEffect(() => {
     if (editData) {
-      setPaymentDate(editData.date);
-      setPayment(editData.payment);
-      setAccount(editData.account);
-      setAmount(editData.amount.toString());
-      setDescription(editData.description || "");
-      setCategory(editData.category || "");
+      setPaymentDate(editData.date)
+      setPayment(editData.payment)
+      setAccount(editData.account)
+      setAmount(editData.amount.toString())
+      setDescription(editData.description || "")
+      setCategory(editData.category || "")
     } else {
-      setPaymentDate("");
-      setPayment("");
-      setAccount("");
-      setAmount("");
-      setDescription("");
-      setCategory("");
+      setPaymentDate("")
+      setPayment("")
+      setAccount("")
+      setAmount("")
+      setDescription("")
+      setCategory("")
     }
-  }, [editData]);
+  }, [editData])
 
   // Handle Enter key navigation
   const handleKeyDown = (e, nextRef) => {
     if (e.key === "Enter") {
-      e.preventDefault();
+      e.preventDefault()
       if (nextRef && nextRef.current) {
-        nextRef.current.focus();
+        nextRef.current.focus()
       }
     }
-  };
+  }
 
   // PaymentSelect Component
   const PaymentSelect = ({ value, onChange }) => {
-    const [showHierarchy, setShowHierarchy] = useState(false);
-    const [currentCategory, setCurrentCategory] = useState(null);
-    const [newBankName, setNewBankName] = useState("");
-    const [isAddingNewBank, setIsAddingNewBank] = useState(false);
-    const dropdownRef = useRef(null);
+    const [showHierarchy, setShowHierarchy] = useState(false)
+    const [currentCategory, setCurrentCategory] = useState(null)
+    const [newBankName, setNewBankName] = useState("")
+    const [isAddingNewBank, setIsAddingNewBank] = useState(false)
+    const dropdownRef = useRef(null)
 
     useEffect(() => {
       const handleClickOutside = (event) => {
         if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setShowHierarchy(false);
-          setCurrentCategory(null);
+          setShowHierarchy(false)
+          setCurrentCategory(null)
         }
-      };
-      document.addEventListener("mousedown", handleClickOutside);
+      }
+      document.addEventListener("mousedown", handleClickOutside)
       return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }, []);
+        document.removeEventListener("mousedown", handleClickOutside)
+      }
+    }, [])
 
     const handlePaymentSelect = (paymentAccount) => {
-      onChange(paymentAccount);
-      setShowHierarchy(false);
-      setCurrentCategory(null);
+      onChange(paymentAccount)
+      setShowHierarchy(false)
+      setCurrentCategory(null)
       setTimeout(() => {
         if (accountRef.current) {
-          accountRef.current.focus();
+          accountRef.current.focus()
         }
-      }, 100);
-    };
+      }, 100)
+    }
 
     const startAddingNewBank = () => {
-      setIsAddingNewBank(true);
-      setNewBankName("");
-      setShowHierarchy(false);
-    };
+      setIsAddingNewBank(true)
+      setNewBankName("")
+      setShowHierarchy(false)
+    }
 
     const deleteBank = (bankName) => {
       if (window.confirm(`Are you sure you want to delete "${bankName}"?`)) {
-        const updatedHierarchy = JSON.parse(JSON.stringify(paymentHierarchy));
-        updatedHierarchy.Bank = updatedHierarchy.Bank.filter((bank) => bank !== bankName);
-        setPaymentHierarchy(updatedHierarchy);
-
+        const updatedHierarchy = JSON.parse(JSON.stringify(paymentHierarchy))
+        updatedHierarchy.Bank = updatedHierarchy.Bank.filter((bank) => bank !== bankName)
+        setPaymentHierarchy(updatedHierarchy)
         if (value === bankName) {
-          onChange("");
+          onChange("")
         }
       }
-    };
+    }
 
     const saveNewBank = () => {
-      const trimmedName = newBankName.trim();
+      const trimmedName = newBankName.trim()
       if (!trimmedName) {
-        alert("Please enter a bank name");
-        return;
+        alert("Please enter a bank name")
+        return
       }
       if (paymentHierarchy.Bank.includes(trimmedName)) {
-        alert("Bank name already exists");
-        return;
+        alert("Bank name already exists")
+        return
       }
-      const updatedHierarchy = JSON.parse(JSON.stringify(paymentHierarchy));
-      updatedHierarchy.Bank.push(trimmedName);
-      setPaymentHierarchy(updatedHierarchy);
-      onChange(trimmedName);
-      setIsAddingNewBank(false);
-      setNewBankName("");
+      const updatedHierarchy = JSON.parse(JSON.stringify(paymentHierarchy))
+      updatedHierarchy.Bank.push(trimmedName)
+      setPaymentHierarchy(updatedHierarchy)
+      onChange(trimmedName)
+      setIsAddingNewBank(false)
+      setNewBankName("")
       if (accountRef.current) {
-        accountRef.current.focus();
+        accountRef.current.focus()
       }
-    };
+    }
 
     const renderCategoryOptions = () => (
       <>
@@ -147,7 +152,7 @@ const PaymentForm = ({
           </div>
         ))}
       </>
-    );
+    )
 
     const renderBankOptions = () => (
       <>
@@ -167,8 +172,8 @@ const PaymentForm = ({
             </span>
             <button
               onClick={(e) => {
-                e.stopPropagation();
-                deleteBank(bank);
+                e.stopPropagation()
+                deleteBank(bank)
               }}
               className="text-red-500 hover:text-red-700 ml-2"
               title="Delete bank"
@@ -180,15 +185,15 @@ const PaymentForm = ({
         <button
           type="button"
           onClick={(e) => {
-            e.stopPropagation();
-            startAddingNewBank();
+            e.stopPropagation()
+            startAddingNewBank()
           }}
           className="p-2 hover:bg-gray-100 cursor-pointer text-blue-600 font-semibold w-full text-left"
         >
           + Add New Bank
         </button>
       </>
-    );
+    )
 
     return (
       <div className="relative" ref={dropdownRef}>
@@ -217,8 +222,8 @@ const PaymentForm = ({
               onChange={(e) => setNewBankName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.preventDefault();
-                  saveNewBank();
+                  e.preventDefault()
+                  saveNewBank()
                 }
               }}
               placeholder="Enter new bank name"
@@ -242,132 +247,131 @@ const PaymentForm = ({
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // AccountSelect Component
   const AccountSelect = ({ value, onChange }) => {
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [isAddingNewAccount, setIsAddingNewAccount] = useState(false);
-    const [newAccountName, setNewAccountName] = useState("");
-    const dropdownRef = useRef(null);
-    const inputRef = useRef(null);
+    const [showDropdown, setShowDropdown] = useState(false)
+    const [searchTerm, setSearchTerm] = useState("")
+    const [isAddingNewAccount, setIsAddingNewAccount] = useState(false)
+    const [newAccountName, setNewAccountName] = useState("")
+    const dropdownRef = useRef(null)
+    const inputRef = useRef(null)
 
     useEffect(() => {
       const handleClickOutside = (event) => {
         if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setShowDropdown(false);
-          setIsAddingNewAccount(false);
-          setSearchTerm("");
+          setShowDropdown(false)
+          setIsAddingNewAccount(false)
+          setSearchTerm("")
         }
-      };
-      document.addEventListener("mousedown", handleClickOutside);
+      }
+      document.addEventListener("mousedown", handleClickOutside)
       return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }, []);
+        document.removeEventListener("mousedown", handleClickOutside)
+      }
+    }, [])
 
     const filteredAccounts = debitAccountOptions.filter((account) =>
-      account.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+      account.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
 
     const handleAccountSelect = (accountName) => {
-      onChange(accountName);
-      setShowDropdown(false);
-      setSearchTerm("");
+      onChange(accountName)
+      setShowDropdown(false)
+      setSearchTerm("")
       if (amountRef.current) {
-        amountRef.current.focus();
+        amountRef.current.focus()
       }
-    };
+    }
 
     const handleInputChange = (e) => {
-      const inputValue = e.target.value;
-      setSearchTerm(inputValue);
-      setShowDropdown(true);
-
-      const exactMatch = debitAccountOptions.find((account) => account.toLowerCase() === inputValue.toLowerCase());
+      const inputValue = e.target.value
+      setSearchTerm(inputValue)
+      setShowDropdown(true)
+      const exactMatch = debitAccountOptions.find((account) => account.toLowerCase() === inputValue.toLowerCase())
       if (exactMatch) {
-        onChange(exactMatch);
+        onChange(exactMatch)
       } else if (inputValue === "") {
-        onChange("");
+        onChange("")
       }
-    };
+    }
 
     const handleInputFocus = () => {
-      setShowDropdown(true);
-      setSearchTerm(value || "");
-    };
+      setShowDropdown(true)
+      setSearchTerm(value || "")
+    }
 
     const handleInputBlur = () => {
       setTimeout(() => {
         if (!dropdownRef.current?.contains(document.activeElement)) {
-          setShowDropdown(false);
-          setSearchTerm("");
+          setShowDropdown(false)
+          setSearchTerm("")
         }
-      }, 150);
-    };
+      }, 150)
+    }
 
     const handleKeyDown = (e) => {
       if (e.key === "Enter") {
-        e.preventDefault();
+        e.preventDefault()
         if (filteredAccounts.length === 1) {
-          handleAccountSelect(filteredAccounts[0]);
+          handleAccountSelect(filteredAccounts[0])
         } else if (filteredAccounts.length > 1) {
-          handleAccountSelect(filteredAccounts[0]);
+          handleAccountSelect(filteredAccounts[0])
         } else if (searchTerm) {
-          onChange(searchTerm);
-          setShowDropdown(false);
+          onChange(searchTerm)
+          setShowDropdown(false)
           if (amountRef.current) {
-            amountRef.current.focus();
+            amountRef.current.focus()
           }
         } else {
           if (amountRef.current) {
-            amountRef.current.focus();
+            amountRef.current.focus()
           }
         }
       } else if (e.key === "Escape") {
-        setShowDropdown(false);
-        setSearchTerm("");
+        setShowDropdown(false)
+        setSearchTerm("")
       }
-    };
+    }
 
     const startAddingNewAccount = () => {
-      setIsAddingNewAccount(true);
-      setNewAccountName(searchTerm);
-      setShowDropdown(false);
-    };
+      setIsAddingNewAccount(true)
+      setNewAccountName(searchTerm)
+      setShowDropdown(false)
+    }
 
     const saveNewAccount = () => {
-      const trimmedName = newAccountName.trim();
+      const trimmedName = newAccountName.trim()
       if (!trimmedName) {
-        alert("Please enter an account name");
-        return;
+        alert("Please enter an account name")
+        return
       }
       if (debitAccountOptions.includes(trimmedName)) {
-        alert("Account name already exists");
-        return;
+        alert("Account name already exists")
+        return
       }
-      const updatedAccounts = [...debitAccountOptions, trimmedName];
-      setDebitAccountOptions(updatedAccounts);
-      onChange(trimmedName);
-      setIsAddingNewAccount(false);
-      setNewAccountName("");
-      setSearchTerm("");
+      const updatedAccounts = [...debitAccountOptions, trimmedName]
+      setDebitAccountOptions(updatedAccounts)
+      onChange(trimmedName)
+      setIsAddingNewAccount(false)
+      setNewAccountName("")
+      setSearchTerm("")
       if (amountRef.current) {
-        amountRef.current.focus();
+        amountRef.current.focus()
       }
-    };
+    }
 
-    const displayValue = showDropdown ? searchTerm : value || "";
+    const displayValue = showDropdown ? searchTerm : value || ""
 
     return (
       <div className="relative" ref={dropdownRef}>
         <input
           ref={(el) => {
-            inputRef.current = el;
+            inputRef.current = el
             if (accountRef) {
-              accountRef.current = el;
+              accountRef.current = el
             }
           }}
           type="text"
@@ -380,7 +384,6 @@ const PaymentForm = ({
           placeholder="Search or select account..."
           autoComplete="off"
         />
-
         {showDropdown && !isAddingNewAccount && (
           <div
             className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
@@ -399,18 +402,16 @@ const PaymentForm = ({
                       dangerouslySetInnerHTML={{
                         __html: searchTerm
                           ? account.replace(
-                            new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"),
-                            '<mark class="bg-yellow-200">$1</mark>'
-                          )
+                              new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"),
+                              '<mark class="bg-yellow-200">$1</mark>',
+                            )
                           : account,
                       }}
                     />
                   </div>
                 ))
               ) : searchTerm ? (
-                <div className="p-2 text-gray-500 italic">
-                  No accounts found for "{searchTerm}"
-                </div>
+                <div className="p-2 text-gray-500 italic">No accounts found for "{searchTerm}"</div>
               ) : (
                 debitAccountOptions.map((account) => (
                   <div
@@ -433,7 +434,6 @@ const PaymentForm = ({
             </div>
           </div>
         )}
-
         {isAddingNewAccount && (
           <div className="flex items-center gap-2 mt-2">
             <input
@@ -442,8 +442,8 @@ const PaymentForm = ({
               onChange={(e) => setNewAccountName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.preventDefault();
-                  saveNewAccount();
+                  e.preventDefault()
+                  saveNewAccount()
                 }
               }}
               placeholder="Enter new account name"
@@ -460,10 +460,10 @@ const PaymentForm = ({
             <button
               type="button"
               onClick={() => {
-                setIsAddingNewAccount(false);
-                setSearchTerm("");
+                setIsAddingNewAccount(false)
+                setSearchTerm("")
                 if (inputRef.current) {
-                  inputRef.current.focus();
+                  inputRef.current.focus()
                 }
               }}
               className="px-4 py-2 border border-gray-300 text-gray-700 bg-gray-50 shadow-sm rounded-md hover:bg-gray-100 transition"
@@ -473,21 +473,49 @@ const PaymentForm = ({
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // SUBMIT
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e.preventDefault()
 
-    if (!paymentDate) return alert("Please select a payment date");
-    if (!payment) return alert("Please select a payment account");
-    if (!account) return alert("Please select an account");
-    if (!category) return alert("Please select a category for the account");
-    if (!amount) return alert("Please enter an amount");
-    const floatAmount = Number.parseFloat(amount);
-    if (isNaN(floatAmount)) return alert("Amount must be a number");
-    if (Number.parseFloat(floatAmount) <= 0) return alert("Amount must be greater than 0");
+    if (!paymentDate) {
+      alert("Please select a payment date")
+      dateRef.current?.focus()
+      return
+    }
+    if (!payment) {
+      alert("Please select a payment account")
+      paymentRef.current?.focus()
+      return
+    }
+    if (!account) {
+      alert("Please select an account")
+      accountRef.current?.focus()
+      return
+    }
+    if (!category) {
+      alert("Please select a category for the account")
+      categoryRef.current?.focus() // Focus the new category ref
+      return
+    }
+    if (!amount) {
+      alert("Please enter an amount")
+      amountRef.current?.focus()
+      return
+    }
+    const floatAmount = Number.parseFloat(amount)
+    if (isNaN(floatAmount)) {
+      alert("Amount must be a number")
+      amountRef.current?.focus()
+      return
+    }
+    if (Number.parseFloat(floatAmount) <= 0) {
+      alert("Amount must be greater than 0")
+      amountRef.current?.focus()
+      return
+    }
 
     const newEntry = {
       date: paymentDate,
@@ -496,15 +524,15 @@ const PaymentForm = ({
       amount: floatAmount,
       description: description.trim() || "",
       category,
-    };
+    }
 
     if (onSave) {
-      onSave(newEntry);
+      onSave(newEntry)
     }
 
     // Only One Reference per Transaction
-    const entryReference = `Payment-${Date.now()}`;
-    const existingLedgerEntries = JSON.parse(localStorage.getItem("ledgerEntries") || "[]");
+    const entryReference = `Payment-${Date.now()}`
+    const existingLedgerEntries = JSON.parse(localStorage.getItem("ledgerEntries") || "[]")
 
     const debitEntry = {
       date: paymentDate,
@@ -515,8 +543,7 @@ const PaymentForm = ({
       type: "Payment",
       reference: entryReference,
       category,
-    };
-
+    }
     const creditEntry = {
       date: paymentDate,
       account: payment,
@@ -525,26 +552,26 @@ const PaymentForm = ({
       description: description.trim() || "",
       type: "Payment",
       reference: entryReference,
-    };
+    }
 
-    const updatedLedgerEntries = [...existingLedgerEntries, debitEntry, creditEntry];
-    localStorage.setItem("ledgerEntries", JSON.stringify(updatedLedgerEntries));
+    const updatedLedgerEntries = [...existingLedgerEntries, debitEntry, creditEntry]
+    localStorage.setItem("ledgerEntries", JSON.stringify(updatedLedgerEntries))
 
-    setSuccessMessage(editData ? "Payment entry updated successfully!" : "Payment entry created successfully!");
-    setTimeout(() => setSuccessMessage(""), 3000);
+    setSuccessMessage(editData ? "Payment entry updated successfully!" : "Payment entry created successfully!")
+    setTimeout(() => setSuccessMessage(""), 3000)
 
     if (!editData) {
-      setPaymentDate("");
-      setPayment("");
-      setAccount("");
-      setAmount("");
-      setDescription("");
-      setCategory("");
+      setPaymentDate("")
+      setPayment("")
+      setAccount("")
+      setAmount("")
+      setDescription("")
+      setCategory("")
       if (dateRef.current) {
-        dateRef.current.focus();
+        dateRef.current.focus()
       }
     }
-  };
+  }
 
   // --- FORM UI ---
   return (
@@ -587,14 +614,17 @@ const PaymentForm = ({
             </div>
             <div className="w-1/2">
               <select
+                ref={categoryRef} // Attach ref to the select element
                 value={category}
-                onChange={e => setCategory(e.target.value)}
+                onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
                 <option value="">Select Category</option>
-                {categoryOptions.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
+                {categoryOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
                 ))}
               </select>
             </div>
@@ -627,9 +657,9 @@ const PaymentForm = ({
             onChange={(e) => setDescription(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && e.ctrlKey) {
-                e.preventDefault();
+                e.preventDefault()
                 if (submitRef.current) {
-                  submitRef.current.focus();
+                  submitRef.current.focus()
                 }
               }
             }}
@@ -644,13 +674,13 @@ const PaymentForm = ({
         <button
           type="button"
           onClick={() => {
-            setPaymentDate("");
-            setPayment("");
-            setAccount("");
-            setAmount("");
-            setDescription("");
-            setCategory("");
-            if (editData) onSave(null);
+            setPaymentDate("")
+            setPayment("")
+            setAccount("")
+            setAmount("")
+            setDescription("")
+            setCategory("")
+            if (editData) onSave(null)
           }}
           className="px-4 py-2 border border-red-300 text-red-700 bg-red-50 shadow-sm rounded-md hover:bg-red-100 transition"
         >
@@ -665,7 +695,7 @@ const PaymentForm = ({
         </button>
       </div>
     </form>
-  );
-};
+  )
+}
 
-export default PaymentForm;
+export default PaymentForm
