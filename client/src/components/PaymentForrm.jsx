@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+
+const categoryOptions = ["Asset", "Expense", "Revenue", "Liability", "Capital"]
 
 const PaymentForm = ({
   onSave,
@@ -13,15 +15,22 @@ const PaymentForm = ({
   const [account, setAccount] = useState("")
   const [amount, setAmount] = useState("")
   const [description, setDescription] = useState("")
+  const [category, setCategory] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
 
-  // Refs for Enter key navigation
+  // Refs for Enter key navigation and focus on error
   const dateRef = useRef(null)
   const paymentRef = useRef(null)
   const accountRef = useRef(null)
   const amountRef = useRef(null)
   const descriptionRef = useRef(null)
   const submitRef = useRef(null)
+  const categoryRef = useRef(null) // New ref for category select
+
+  // Focus journal date on initial load
+  useEffect(() => {
+    dateRef.current?.focus()
+  }, [])
 
   // Initialize form with edit data if provided
   useEffect(() => {
@@ -31,12 +40,14 @@ const PaymentForm = ({
       setAccount(editData.account)
       setAmount(editData.amount.toString())
       setDescription(editData.description || "")
+      setCategory(editData.category || "")
     } else {
       setPaymentDate("")
       setPayment("")
       setAccount("")
       setAmount("")
       setDescription("")
+      setCategory("")
     }
   }, [editData])
 
@@ -50,7 +61,7 @@ const PaymentForm = ({
     }
   }
 
-  // Payment Select Component (with hierarchy for credit side)
+  // PaymentSelect Component
   const PaymentSelect = ({ value, onChange }) => {
     const [showHierarchy, setShowHierarchy] = useState(false)
     const [currentCategory, setCurrentCategory] = useState(null)
@@ -65,7 +76,6 @@ const PaymentForm = ({
           setCurrentCategory(null)
         }
       }
-
       document.addEventListener("mousedown", handleClickOutside)
       return () => {
         document.removeEventListener("mousedown", handleClickOutside)
@@ -76,14 +86,9 @@ const PaymentForm = ({
       onChange(paymentAccount)
       setShowHierarchy(false)
       setCurrentCategory(null)
-      // Focus next field after selection with a small delay to ensure DOM is updated
       setTimeout(() => {
         if (accountRef.current) {
-          if (accountRef.current.focus) {
-            accountRef.current.focus()
-          } else if (accountRef.current.querySelector("input")) {
-            accountRef.current.querySelector("input").focus()
-          }
+          accountRef.current.focus()
         }
       }, 100)
     }
@@ -99,8 +104,6 @@ const PaymentForm = ({
         const updatedHierarchy = JSON.parse(JSON.stringify(paymentHierarchy))
         updatedHierarchy.Bank = updatedHierarchy.Bank.filter((bank) => bank !== bankName)
         setPaymentHierarchy(updatedHierarchy)
-
-        // Clear the selection if the deleted bank was selected
         if (value === bankName) {
           onChange("")
         }
@@ -109,31 +112,20 @@ const PaymentForm = ({
 
     const saveNewBank = () => {
       const trimmedName = newBankName.trim()
-
       if (!trimmedName) {
         alert("Please enter a bank name")
         return
       }
-
-      // Check for existing bank
       if (paymentHierarchy.Bank.includes(trimmedName)) {
         alert("Bank name already exists")
         return
       }
-
-      // Create a deep copy of the hierarchy
       const updatedHierarchy = JSON.parse(JSON.stringify(paymentHierarchy))
       updatedHierarchy.Bank.push(trimmedName)
-
-      // Update states
       setPaymentHierarchy(updatedHierarchy)
-
-      // Select the new bank and reset state
       onChange(trimmedName)
       setIsAddingNewBank(false)
       setNewBankName("")
-
-      // Focus next field
       if (accountRef.current) {
         accountRef.current.focus()
       }
@@ -173,7 +165,6 @@ const PaymentForm = ({
         <div className="font-semibold mb-2 border border-gray-300 bg-gray-200 shadow-sm text-black text-center">
           Bank
         </div>
-
         {paymentHierarchy.Bank.map((bank) => (
           <div key={bank} className="p-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center">
             <span onClick={() => handlePaymentSelect(bank)} className="flex-grow">
@@ -191,7 +182,6 @@ const PaymentForm = ({
             </button>
           </div>
         ))}
-
         <button
           type="button"
           onClick={(e) => {
@@ -216,7 +206,6 @@ const PaymentForm = ({
         >
           {value || "Select Payment Account"}
         </div>
-
         {showHierarchy && !isAddingNewBank && (
           <div
             className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
@@ -225,7 +214,6 @@ const PaymentForm = ({
             <div className="p-2">{!currentCategory ? renderCategoryOptions() : renderBankOptions()}</div>
           </div>
         )}
-
         {isAddingNewBank && (
           <div className="flex items-center gap-2 mt-2">
             <input
@@ -262,7 +250,7 @@ const PaymentForm = ({
     )
   }
 
-  // Account Select Component (with search-as-you-type and "Add New Account" option in dropdown)
+  // AccountSelect Component
   const AccountSelect = ({ value, onChange }) => {
     const [showDropdown, setShowDropdown] = useState(false)
     const [searchTerm, setSearchTerm] = useState("")
@@ -279,14 +267,12 @@ const PaymentForm = ({
           setSearchTerm("")
         }
       }
-
       document.addEventListener("mousedown", handleClickOutside)
       return () => {
         document.removeEventListener("mousedown", handleClickOutside)
       }
     }, [])
 
-    // Filter accounts based on search term
     const filteredAccounts = debitAccountOptions.filter((account) =>
       account.toLowerCase().includes(searchTerm.toLowerCase()),
     )
@@ -295,7 +281,6 @@ const PaymentForm = ({
       onChange(accountName)
       setShowDropdown(false)
       setSearchTerm("")
-      // Focus next field
       if (amountRef.current) {
         amountRef.current.focus()
       }
@@ -305,8 +290,6 @@ const PaymentForm = ({
       const inputValue = e.target.value
       setSearchTerm(inputValue)
       setShowDropdown(true)
-
-      // Only update parent if there's an exact match
       const exactMatch = debitAccountOptions.find((account) => account.toLowerCase() === inputValue.toLowerCase())
       if (exactMatch) {
         onChange(exactMatch)
@@ -317,12 +300,10 @@ const PaymentForm = ({
 
     const handleInputFocus = () => {
       setShowDropdown(true)
-      // Initialize search term with current value when focusing
       setSearchTerm(value || "")
     }
 
     const handleInputBlur = () => {
-      // Small delay to allow clicking on dropdown items
       setTimeout(() => {
         if (!dropdownRef.current?.contains(document.activeElement)) {
           setShowDropdown(false)
@@ -335,20 +316,16 @@ const PaymentForm = ({
       if (e.key === "Enter") {
         e.preventDefault()
         if (filteredAccounts.length === 1) {
-          // Auto-select if only one match
           handleAccountSelect(filteredAccounts[0])
         } else if (filteredAccounts.length > 1) {
-          // Select first match if multiple
           handleAccountSelect(filteredAccounts[0])
         } else if (searchTerm) {
-          // If no matches but there's text, keep the text as value
           onChange(searchTerm)
           setShowDropdown(false)
           if (amountRef.current) {
             amountRef.current.focus()
           }
         } else {
-          // Move to next field
           if (amountRef.current) {
             amountRef.current.focus()
           }
@@ -367,35 +344,25 @@ const PaymentForm = ({
 
     const saveNewAccount = () => {
       const trimmedName = newAccountName.trim()
-
       if (!trimmedName) {
         alert("Please enter an account name")
         return
       }
-
-      // Check for existing account
       if (debitAccountOptions.includes(trimmedName)) {
         alert("Account name already exists")
         return
       }
-
-      // Add to account options
       const updatedAccounts = [...debitAccountOptions, trimmedName]
       setDebitAccountOptions(updatedAccounts)
-
-      // Select the new account and reset state
       onChange(trimmedName)
       setIsAddingNewAccount(false)
       setNewAccountName("")
       setSearchTerm("")
-
-      // Focus next field
       if (amountRef.current) {
         amountRef.current.focus()
       }
     }
 
-    // Display value: show search term when dropdown is open and user is typing, otherwise show selected value
     const displayValue = showDropdown ? searchTerm : value || ""
 
     return (
@@ -417,11 +384,10 @@ const PaymentForm = ({
           placeholder="Search or select account..."
           autoComplete="off"
         />
-
         {showDropdown && !isAddingNewAccount && (
           <div
             className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
-            onMouseDown={(e) => e.preventDefault()} // Prevent input blur when clicking dropdown
+            onMouseDown={(e) => e.preventDefault()}
           >
             <div className="p-2">
               <div className="font-semibold mb-2 text-gray-700">Debit Accounts</div>
@@ -468,7 +434,6 @@ const PaymentForm = ({
             </div>
           </div>
         )}
-
         {isAddingNewAccount && (
           <div className="flex items-center gap-2 mt-2">
             <input
@@ -497,7 +462,6 @@ const PaymentForm = ({
               onClick={() => {
                 setIsAddingNewAccount(false)
                 setSearchTerm("")
-                // Refocus the main input
                 if (inputRef.current) {
                   inputRef.current.focus()
                 }
@@ -512,85 +476,89 @@ const PaymentForm = ({
     )
   }
 
+  // SUBMIT
   const handleSubmit = (e) => {
     e.preventDefault()
 
     if (!paymentDate) {
       alert("Please select a payment date")
+      dateRef.current?.focus()
       return
     }
-
     if (!payment) {
       alert("Please select a payment account")
+      paymentRef.current?.focus()
       return
     }
-
     if (!account) {
       alert("Please select an account")
+      accountRef.current?.focus()
       return
     }
-
+    if (!category) {
+      alert("Please select a category for the account")
+      categoryRef.current?.focus() // Focus the new category ref
+      return
+    }
     if (!amount) {
       alert("Please enter an amount")
+      amountRef.current?.focus()
       return
     }
-
-    if (isNaN(amount)) {
+    const floatAmount = Number.parseFloat(amount)
+    if (isNaN(floatAmount)) {
       alert("Amount must be a number")
+      amountRef.current?.focus()
       return
     }
-
-    if (Number.parseFloat(amount) <= 0) {
+    if (Number.parseFloat(floatAmount) <= 0) {
       alert("Amount must be greater than 0")
+      amountRef.current?.focus()
       return
     }
 
     const newEntry = {
       date: paymentDate,
-      payment: payment,
-      account: account,
-      amount: Number.parseFloat(amount),
+      payment,
+      account,
+      amount: floatAmount,
       description: description.trim() || "",
+      category,
     }
 
     if (onSave) {
       onSave(newEntry)
     }
 
-    // Push corresponding ledger entries
+    // Only One Reference per Transaction
+    const entryReference = `Payment-${Date.now()}`
     const existingLedgerEntries = JSON.parse(localStorage.getItem("ledgerEntries") || "[]")
 
-    // Debit entry (Account)
     const debitEntry = {
       date: paymentDate,
       account: account,
-      debit: Number.parseFloat(amount),
+      debit: floatAmount,
       credit: 0,
       description: description.trim() || "",
       type: "Payment",
-      reference: `Payment-${Date.now()}`,
+      reference: entryReference,
+      category,
     }
-
-    // Credit entry (Payment account)
     const creditEntry = {
       date: paymentDate,
       account: payment,
       debit: 0,
-      credit: Number.parseFloat(amount),
+      credit: floatAmount,
       description: description.trim() || "",
       type: "Payment",
-      reference: `Payment-${Date.now()}`,
+      reference: entryReference,
     }
 
-    // Add both entries to ledger
     const updatedLedgerEntries = [...existingLedgerEntries, debitEntry, creditEntry]
     localStorage.setItem("ledgerEntries", JSON.stringify(updatedLedgerEntries))
 
     setSuccessMessage(editData ? "Payment entry updated successfully!" : "Payment entry created successfully!")
-
-    setTimeout(() => {
-      setSuccessMessage("")
-    }, 3000)
+    setTimeout(() => setSuccessMessage(""), 3000)
 
     if (!editData) {
       setPaymentDate("")
@@ -598,20 +566,20 @@ const PaymentForm = ({
       setAccount("")
       setAmount("")
       setDescription("")
-      // Focus back to first field
+      setCategory("")
       if (dateRef.current) {
         dateRef.current.focus()
       }
     }
   }
 
+  // --- FORM UI ---
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-center text-xl font-bold mb-4">{editData ? "Edit Payment Entry" : "Add Payment Entry"}</h2>
-
       {successMessage && <div className="text-green-700 text-center font-semibold mb-4">{successMessage}</div>}
 
-      {/* Date Field - Matches JournalForm */}
+      {/* Date Field */}
       <div className="flex justify-center mb-8">
         <div className="flex items-center gap-8">
           <label className="text-sm font-medium text-gray-700">Payment Date</label>
@@ -627,7 +595,7 @@ const PaymentForm = ({
         </div>
       </div>
 
-      {/* Other Fields - Original Vertical Layout */}
+      {/* Main Fields */}
       <div className="space-y-6">
         {/* Payment (Credit) Field */}
         <div className="flex items-center gap-4">
@@ -637,11 +605,29 @@ const PaymentForm = ({
           </div>
         </div>
 
-        {/* Account (Debit) Field */}
+        {/* Account (Debit) Field + Category */}
         <div className="flex items-center gap-4">
           <label className="text-sm font-medium text-gray-700 w-32">Account</label>
-          <div className="flex-1">
-            <AccountSelect value={account} onChange={setAccount} />
+          <div className="flex-1 flex gap-2 items-center">
+            <div className="w-1/2">
+              <AccountSelect value={account} onChange={setAccount} />
+            </div>
+            <div className="w-1/2">
+              <select
+                ref={categoryRef} // Attach ref to the select element
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select Category</option>
+                {categoryOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -656,7 +642,7 @@ const PaymentForm = ({
             onKeyDown={(e) => handleKeyDown(e, descriptionRef)}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="0.00"
-            step="0.01"
+            step="any"
             min="0"
             required
           />
@@ -693,6 +679,7 @@ const PaymentForm = ({
             setAccount("")
             setAmount("")
             setDescription("")
+            setCategory("")
             if (editData) onSave(null)
           }}
           className="px-4 py-2 border border-red-300 text-red-700 bg-red-50 shadow-sm rounded-md hover:bg-red-100 transition"

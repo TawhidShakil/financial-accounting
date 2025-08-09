@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
-import PaymentForm from "../components/PaymentForm"
 import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline"
+import { useEffect, useState } from "react"
+import PaymentForm from "../components/PaymentForrm"
 
 const defaultPaymentHierarchy = {
   Cash: [],
