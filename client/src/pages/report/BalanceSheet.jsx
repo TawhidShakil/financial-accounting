@@ -2,16 +2,98 @@ import { useEffect, useState } from "react";
 import DateRangeFilter from "../../components/DateRangeFilter";
 import ReportPDFDownloader from "../../components/ReportPDFDownloader";
 
-// Normalize category labels to a canonical set
-const normalizeCat = (c) => {
-  const v = (c || "").toLowerCase().trim();
+// =====================
+// Helpers
+// =====================
+const normalizeCat = (c, name = "") => {
+  const v = (c || name || "").toLowerCase().trim();
   if (!v) return "";
-  if (v.startsWith("asset")) return "asset";
-  if (v.startsWith("liab")) return "liability";
-  if (v.startsWith("equity") || v.startsWith("capital") || v.startsWith("owner")) return "equity";
-  if (v.startsWith("rev") || v.includes("revenue") || v.includes("income") || v.includes("sales")) return "revenue";
-  if (v.startsWith("exp") || v.includes("expense") || v.includes("rent") || v.includes("salary") || v.includes("utilities")) return "expense";
+
+  // Assets
+  if (
+    v.startsWith("asset") ||
+    v.includes("cash") ||
+    v.includes("bank") ||
+    v.includes("receivable") ||
+    v.includes("note receivable") ||
+    v.includes("inventory") ||
+    v.includes("stock") ||
+    v.includes("supplies") ||
+    v.includes("equipment") ||
+    v.includes("furniture") ||
+    v.includes("vehicle") ||
+    v.includes("land") ||
+    v.includes("building") ||
+    v.includes("prepaid") ||
+    v.includes("accumulated depreciation") // contra হলেও শ্রেণী asset
+  ) return "asset";
+
+  // Liabilities
+  if (
+    v.startsWith("liab") ||
+    v.includes("payable") ||
+    v.includes("loan payable") ||
+    v.includes("notes payable") ||
+    v.includes("unearned revenue") ||
+    v.includes("deferred revenue")
+  ) return "liability";
+
+  // Equity
+  if (
+    v.startsWith("equity") ||
+    v.startsWith("capital") ||
+    v.includes("owner") ||
+    v.includes("retained earnings") ||
+    v.includes("drawing") ||
+    v.includes("withdraw")
+  ) return "equity";
+
+  // Expenses
+  if (
+    v.startsWith("exp") ||
+    v.includes("expense") ||
+    v.includes("rent") ||
+    v.includes("salary") ||
+    v.includes("salaries") ||
+    v.includes("utilities") ||
+    v.includes("advertising") ||
+    v.includes("depreciation") ||
+    v.includes("interest expense")
+  ) return "expense";
+
+  // Revenues
+  if (
+    v.startsWith("rev") ||
+    v.includes("revenue") ||
+    v.includes("income") ||
+    v.includes("sales") ||
+    v.includes("commission")
+  ) return "revenue";
+
   return v;
+};
+
+const isContraAsset = (name = "") => {
+  const v = name.toLowerCase();
+  return (
+    v.includes("accumulated depreciation") ||
+    v.includes("allowance for") ||
+    v.includes("provision for")
+  );
+};
+const isContraEquity = (name = "") => {
+  const v = name.toLowerCase();
+  return v.includes("drawing") || v.includes("withdraw");
+};
+
+const parseISO = (d) => (d ? new Date(d) : null);
+const isWithin = (d, from, to) => {
+  if (!d) return true;
+  const dt = parseISO(d);
+  if (!dt || isNaN(dt)) return true;
+  if (from && dt < parseISO(from)) return false;
+  if (to && dt > parseISO(to)) return false;
+  return true;
 };
 
 export default function BalanceSheet() {
@@ -21,7 +103,6 @@ export default function BalanceSheet() {
   const [totalAssets, setTotalAssets] = useState(0);
   const [totalLiabilities, setTotalLiabilities] = useState(0);
   const [totalEquity, setTotalEquity] = useState(0);
-  const [netIncome, setNetIncome] = useState(0);
 
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -39,130 +120,98 @@ export default function BalanceSheet() {
     const journalEntries = JSON.parse(localStorage.getItem("journalEntries") || "[]");
     const coa = JSON.parse(localStorage.getItem("chartOfAccounts") || "{}");
 
+    // Collect all lines (ledger already has both legs)
     const all = [...ledgerEntries];
 
-    // Flatten journalEntries (old mixed format support)
-    journalEntries.forEach((j) => {
+    // Flatten journal (supports new/legacy shapes)
+    (journalEntries || []).forEach((j) => {
       if (Array.isArray(j.entries)) {
         j.entries.forEach((e) => {
           all.push({
-            date: j.date,
+            date: j.date || "",
             account: e.account,
             debit: e.type === "Debit" ? Number(e.amount) : 0,
             credit: e.type === "Credit" ? Number(e.amount) : 0,
             category: e.category || "",
             type: "Journal",
-            reference: `Journal-${j.date}-${e.account}`,
           });
         });
       } else {
-        // legacy two-line journal
         all.push({
-          date: j.date,
+          date: j.date || "",
           account: j.debitAccount,
-          debit: Number(j.amount),
+          debit: Number(j.amount) || 0,
           credit: 0,
           category: j.debitCategory || "",
           type: "Journal",
-          reference: `Journal-${j.date}-${j.debitAccount}`,
         });
         all.push({
-          date: j.date,
+          date: j.date || "",
           account: j.creditAccount,
           debit: 0,
-          credit: Number(j.amount),
+          credit: Number(j.amount) || 0,
           category: j.creditCategory || "",
           type: "Journal",
-          reference: `Journal-${j.date}-${j.creditAccount}`,
         });
       }
     });
 
     // Date filter
-    const filtered = all.filter((x) => {
-      if (!x.date) return true;
-      if (fromDate && x.date < fromDate) return false;
-      if (toDate && x.date > toDate) return false;
-      return true;
-    });
+    const filtered = all.filter((x) => isWithin(x.date, fromDate, toDate));
 
-    // Build account aggregates
-    const map = {};
+    // Aggregate per account
+    const accMap = new Map(); // name -> {debit, credit, category}
     filtered.forEach((x) => {
       const name = x.account || "Unknown";
-      if (!map[name]) {
-        map[name] = { name, debit: 0, credit: 0, category: "" };
-      }
-      map[name].debit += Number(x.debit) || 0;
-      map[name].credit += Number(x.credit) || 0;
+      const curr = accMap.get(name) || { name, debit: 0, credit: 0, category: "" };
+      curr.debit += Number(x.debit) || 0;
+      curr.credit += Number(x.credit) || 0;
 
-      // Resolve category priority: COA > ledger.category > name fallback
-      let cat =
-        normalizeCat(coa[name]?.category) ||
-        normalizeCat(x.category) ||
-        "";
+      const resolved =
+        normalizeCat(coa[name]?.category, name) ||
+        normalizeCat(x.category, name) ||
+        normalizeCat("", name); // name heuristics
+      curr.category = resolved || curr.category;
 
-      if (!cat) {
-        const n = (name || "").toLowerCase();
-        if (
-          n.includes("cash") ||
-          n.includes("bank") ||
-          n.includes("asset") ||
-          n.includes("receivable") ||
-          n.includes("inventory") ||
-          n.includes("supplies") ||
-          n.includes("equipment") ||
-          n.includes("land") ||
-          n.includes("building")
-        ) cat = "asset";
-        else if (
-          n.includes("liability") ||
-          n.includes("payable") ||
-          n.includes("loan payable") ||
-          (n.includes("loan") && !n.includes("receivable"))
-        ) cat = "liability";
-        else if (n.includes("capital") || n.includes("equity") || n.includes("owner")) cat = "equity";
-        else if (n.includes("revenue") || n.includes("income") || n.includes("sales")) cat = "revenue";
-        else if (n.includes("expense") || n.includes("rent") || n.includes("salary") || n.includes("utilities")) cat = "expense";
-      }
-      map[name].category = normalizeCat(cat || map[name].category);
+      accMap.set(name, curr);
     });
 
-    // Build statements
+    // Build lists + compute Net Income from rev/exp (for equity section)
     const assetsArr = [];
     const liabilitiesArr = [];
     const equityArr = [];
 
-    let totalRevenue = 0;
-    let totalExpense = 0;
+    let totalRev = 0;
+    let totalExp = 0;
 
-    Object.values(map).forEach((acc) => {
+    accMap.forEach((acc) => {
       const cat = acc.category;
-      const balance = (acc.debit || 0) - (acc.credit || 0); // Dr - Cr
+      const dr = acc.debit || 0;
+      const cr = acc.credit || 0;
 
       if (cat === "asset") {
-        assetsArr.push({ description: acc.name, amount: Math.abs(balance) });
+        let amt = dr - cr;                // Dr − Cr
+        if (isContraAsset(acc.name)) amt = -amt;
+        if (Math.abs(amt) > 1e-9) assetsArr.push({ description: acc.name, amount: amt });
       } else if (cat === "liability") {
-        liabilitiesArr.push({ description: acc.name, amount: Math.abs(-balance) });
+        const amt = cr - dr;              // Cr − Dr
+        if (Math.abs(amt) > 1e-9) liabilitiesArr.push({ description: acc.name, amount: amt });
       } else if (cat === "equity") {
-        equityArr.push({ description: acc.name, amount: Math.abs(-balance) });
-      }
-
-      // Net income (Revenue/Expense)
-      if (cat === "revenue") {
-        totalRevenue += (acc.credit || 0) - (acc.debit || 0);
+        let amt = cr - dr;                // Cr − Dr
+        if (isContraEquity(acc.name)) amt = -amt;
+        if (Math.abs(amt) > 1e-9) equityArr.push({ description: acc.name, amount: amt });
+      } else if (cat === "revenue") {
+        totalRev += (cr - dr);            // net credit
       } else if (cat === "expense") {
-        totalExpense += (acc.debit || 0) - (acc.credit || 0);
+        totalExp += (dr - cr);            // net debit
       }
     });
 
-    const netInc = totalRevenue - totalExpense;
-    setNetIncome(netInc);
-
-    if (netInc !== 0) {
+    const netInc = totalRev - totalExp;
+    if (netInc) {
       equityArr.push({
         description: netInc > 0 ? "Add: Current Year Net Income" : "Less: Current Year Net Loss",
-        amount: Math.abs(netInc),
+        amount: netInc,
       });
     }
 
@@ -170,6 +219,11 @@ export default function BalanceSheet() {
     const tAssets = assetsArr.reduce((s, a) => s + (Number(a.amount) || 0), 0);
     const tLiab = liabilitiesArr.reduce((s, a) => s + (Number(a.amount) || 0), 0);
     const tEquity = equityArr.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+
+    // Sort (nice UI)
+    assetsArr.sort((a, b) => a.description.localeCompare(b.description));
+    liabilitiesArr.sort((a, b) => a.description.localeCompare(b.description));
+    equityArr.sort((a, b) => a.description.localeCompare(b.description));
 
     setAssets(assetsArr);
     setLiabilities(liabilitiesArr);
@@ -179,21 +233,27 @@ export default function BalanceSheet() {
     setTotalEquity(tEquity);
   };
 
-  useEffect(() => {
-    const h = setInterval(filterAndCalculate, 800);
-    return () => clearInterval(h);
-  }, [fromDate, toDate]);
-
+  // Recompute on load & when storage data changes
   useEffect(() => {
     filterAndCalculate();
+    const onStorage = (e) => {
+      if (["ledgerEntries", "journalEntries", "chartOfAccounts"].includes(e.key)) {
+        filterAndCalculate();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Table rows for PDF
+  // Recompute on date change
+  useEffect(() => {
+    filterAndCalculate();
+  }, [fromDate, toDate]);
+
   const assetRows = assets.map((a) => [a.description, a.amount.toFixed(2)]);
   const liabilityRows = liabilities.map((a) => [a.description, a.amount.toFixed(2)]);
   const equityRows = equity.map((a) => [a.description, a.amount.toFixed(2)]);
 
-  // For footer/status & equity extra row
   const tle = totalLiabilities + totalEquity;
   const balanced = Math.abs(totalAssets - tle) < 0.01;
 
@@ -208,10 +268,7 @@ export default function BalanceSheet() {
           setFromDate(from);
           setToDate(to);
         }}
-        onClear={() => {
-          setFromDate("");
-          setToDate("");
-        }}
+        onClear={() => { setFromDate(""); setToDate(""); }}
       />
 
       <ReportPDFDownloader
@@ -231,7 +288,6 @@ export default function BalanceSheet() {
           ["EQUITY", ""],
           ...equityRows,
           ["Total Equity", totalEquity.toFixed(2)],
-          // New combined line inside PDF too
           ["Total Liabilities + Equity", (totalLiabilities + totalEquity).toFixed(2)],
         ]}
         filename="BalanceSheet.pdf"
@@ -305,7 +361,7 @@ export default function BalanceSheet() {
             </table>
           </div>
 
-          {/* Equity (with TLE line) */}
+          {/* Equity */}
           <div className="bg-white p-4 rounded shadow">
             <h3 className="text-xl font-semibold mb-3">Equity</h3>
             <table className="w-full text-left border border-gray-200">
@@ -326,16 +382,15 @@ export default function BalanceSheet() {
                   <td className="p-2 border-t text-right">Total Equity</td>
                   <td className="p-2 border-t text-right">{totalEquity.toFixed(2)}</td>
                 </tr>
-                {/* NEW: Total Liabilities + Equity aligned with Amount column */}
                 <tr className="font-semibold">
                   <td className="p-2 border-t text-right">Total Liabilities + Equity</td>
-                  <td className="p-2 border-t text-right">{tle.toFixed(2)}</td>
+                  <td className="p-2 border-t text-right">{(totalLiabilities + totalEquity).toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          {/* Status only */}
+          {/* Status */}
           <div className="mt-4 bg-white p-4 rounded shadow text-lg font-semibold text-center">
             <span className={balanced ? "text-green-700" : "text-red-600"}>
               {balanced ? "Balanced" : "Not Balanced"}
