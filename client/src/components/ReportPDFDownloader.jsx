@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { FiPrinter } from "react-icons/fi";
 
 export default function ReportPDFDownloader({
@@ -30,16 +30,16 @@ export default function ReportPDFDownloader({
     }
 
     // Table section
-    doc.autoTable({
+    autoTable(doc, {
       head: [columns],
       body: data,
       startY: 46,
       theme: "grid",
       styles: { fontSize: 11, halign: "right" },
-      headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], halign: "right", fontStyle: "bold" },
+      headStyles: { fillColor: [225, 225, 225], textColor: [0, 0, 0], halign: "right", fontStyle: "bold" },
       columnStyles: { 0: { halign: "left" } },
-      foot: totals ? [ totals ] : undefined,
-      footStyles: { fillColor: [225,225,225], textColor: [0,0,0], fontStyle: "bold" }
+      foot: totals ? [totals] : undefined,
+      footStyles: { fillColor: [225, 225, 225], textColor: [0, 0, 0], fontStyle: "bold" }
     });
 
     // Net Income/Loss (if given)
@@ -49,8 +49,8 @@ export default function ReportPDFDownloader({
       doc.setFontSize(13);
       doc.text(
         (netIncome >= 0 ? "Net Income: " : "Net Loss: ") +
-          "৳ " +
-          Math.abs(netIncome).toFixed(2),
+        "৳ " +
+        Math.abs(netIncome).toFixed(2),
         200 - 16,
         endY + 14,
         { align: "right" }
