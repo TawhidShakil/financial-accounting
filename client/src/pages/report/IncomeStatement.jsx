@@ -1,6 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DateRangeFilter from "../../components/DateRangeFilter";
 import ReportPDFDownloader from "../../components/ReportPDFDownloader";
+
+const normalizeCat = (c) => {
+    const v = (c || "").toLowerCase().trim();
+    if (!v) return "";
+    if (v.startsWith("asset")) return "asset";
+    if (v.startsWith("liab")) return "liability";
+    if (v.startsWith("equity") || v.startsWith("capital") || v.startsWith("owner")) return "equity";
+    if (v.startsWith("rev")) return "revenue";
+    if (v.startsWith("exp")) return "expense";
+    return v;
+};
+
+const parseISO = (d) => (d ? new Date(d) : null);
+const isWithin = (d, from, to) => {
+    if (!d) return true;
+    const dt = parseISO(d);
+    if (!dt || isNaN(dt)) return true;
+    if (from && dt < parseISO(from)) return false;
+    if (to && dt > parseISO(to)) return false;
+    return true;
+};
 
 export default function IncomeStatement() {
     const [revenues, setRevenues] = useState([]);
@@ -9,11 +30,9 @@ export default function IncomeStatement() {
     const [totalRevenue, setTotalRevenue] = useState(0);
     const [totalExpense, setTotalExpense] = useState(0);
 
-    // Date filter state
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
 
-    // For PDF: format date period line
     function getPeriodLine() {
         if (!fromDate && !toDate) return "For the year ended " + new Date().getFullYear();
         if (fromDate && toDate) return `From ${fromDate} to ${toDate}`;
@@ -22,117 +41,96 @@ export default function IncomeStatement() {
         return "";
     }
 
-    // Filter logic
     const filterAndCalculate = () => {
-        const ledgerEntries = JSON.parse(localStorage.getItem("ledgerEntries")) || [];
-        const journalEntries = JSON.parse(localStorage.getItem("journalEntries")) || [];
-
-        const allEntries = [...ledgerEntries];
+        const ledgerEntries = JSON.parse(localStorage.getItem("ledgerEntries") || "[]");
+        const journalEntries = JSON.parse(localStorage.getItem("journalEntries") || "[]");
+        const coa = JSON.parse(localStorage.getItem("chartOfAccounts") || "{}");
 
         // Flatten journal entries
-        journalEntries.forEach((entry) => {
-            if (Array.isArray(entry.entries)) {
-                entry.entries.forEach((e) => {
-                    const name = (e.account || '').toLowerCase();
-                    let category = e.category || "";
-                    if (!category) {
-                        if (
-                            entry.source === "receipt" &&
-                            (name.includes("client") || name.includes("mr.") || name.includes("income") || name.includes("sales"))
-                        ) {
-                            category = "revenue";
-                        } else if (
-                            entry.source === "payment" &&
-                            (name.includes("rent") || name.includes("salary") || name.includes("expense") || name.includes("bill") || name.includes("stationary"))
-                        ) {
-                            category = "expense";
-                        }
-                    }
-                    allEntries.push({
+        const journalLines = [];
+        journalEntries.forEach((je) => {
+            if (Array.isArray(je.entries)) {
+                je.entries.forEach((e) => {
+                    journalLines.push({
                         account: e.account,
-                        debit: e.type === "Debit" ? parseFloat(e.amount) : 0,
-                        credit: e.type === "Credit" ? parseFloat(e.amount) : 0,
-                        category: category,
-                        date: entry.date || "",
+                        debit: e.type === "Debit" ? Number(e.amount) : 0,
+                        credit: e.type === "Credit" ? Number(e.amount) : 0,
+                        category: normalizeCat(e.category || coa[e.account]?.category || ""),
+                        date: je.date || "",
                     });
                 });
             }
         });
 
-        // Filter by date range if dates selected
-        const filteredEntries = allEntries.filter(entry => {
-            if (!entry.date) return true;
-            if (fromDate && entry.date < fromDate) return false;
-            if (toDate && entry.date > toDate) return false;
-            return true;
-        });
+        const normalizedLedger = (ledgerEntries || []).map((le) => ({
+            account: le.account,
+            debit: Number(le.debit || 0),
+            credit: Number(le.credit || 0),
+            category: normalizeCat(le.category || coa[le.account]?.category || ""),
+            date: le.date || "",
+        }));
 
-        const revenueAccounts = {};
-        const expenseAccounts = {};
+        const all = [...normalizedLedger, ...journalLines].filter((x) => isWithin(x.date, fromDate, toDate));
 
-        filteredEntries.forEach((entry) => {
-            const name = entry.account?.toLowerCase() || "";
-            const amount =
-                typeof entry.amount === "number"
-                    ? entry.amount
-                    : entry.debit
-                        ? parseFloat(entry.debit)
-                        : entry.credit
-                            ? parseFloat(entry.credit)
-                            : 0;
-            const category = (entry.category || "").toLowerCase();
-            if (
-                category === "revenue" ||
-                name.includes("revenue") ||
-                name.includes("income") ||
-                name.includes("sales")
-            ) {
-                revenueAccounts[entry.account] = (revenueAccounts[entry.account] || 0) + amount;
-            } else if (
-                category === "expense" ||
-                name.includes("expense") ||
-                name.includes("salary") ||
-                name.includes("rent") ||
-                name.includes("utility")
-            ) {
-                expenseAccounts[entry.account] = (expenseAccounts[entry.account] || 0) + amount;
+        const revenueMap = new Map(); // credit - debit
+        const expenseMap = new Map(); // debit - credit
+
+        all.forEach((x) => {
+            const cat = x.category;
+            const name = x.account || "";
+            const debit = Number(x.debit || 0);
+            const credit = Number(x.credit || 0);
+            if (cat === "revenue") {
+                revenueMap.set(name, (revenueMap.get(name) || 0) + (credit - debit));
+            } else if (cat === "expense") {
+                expenseMap.set(name, (expenseMap.get(name) || 0) + (debit - credit));
             }
         });
 
-        const revenueList = Object.entries(revenueAccounts).map(([k, v]) => ({ description: k, amount: v }));
-        const expenseList = Object.entries(expenseAccounts).map(([k, v]) => ({ description: k, amount: v }));
+        const revenueList = Array.from(revenueMap.entries())
+            .map(([k, v]) => ({ description: k, amount: v }))
+            .filter((x) => Math.abs(x.amount) > 1e-9)
+            .sort((a, b) => a.description.localeCompare(b.description));
+
+        const expenseList = Array.from(expenseMap.entries())
+            .map(([k, v]) => ({ description: k, amount: v }))
+            .filter((x) => Math.abs(x.amount) > 1e-9)
+            .sort((a, b) => a.description.localeCompare(b.description));
 
         setRevenues(revenueList);
         setExpenses(expenseList);
 
         const totalRev = revenueList.reduce((sum, r) => sum + r.amount, 0);
         const totalExp = expenseList.reduce((sum, e) => sum + e.amount, 0);
-        setNetIncome(totalRev - totalExp);
         setTotalRevenue(totalRev);
         setTotalExpense(totalExp);
+        setNetIncome(totalRev - totalExp);
     };
 
-    // Auto refresh every 1s if date filter changes
     useEffect(() => {
-        const interval = setInterval(() => {
-            filterAndCalculate();
-        }, 1000);
-        return () => clearInterval(interval);
-        // eslint-disable-next-line
+        filterAndCalculate();
+        const onStorage = (e) => {
+            if (e.key === "ledgerEntries" || e.key === "journalEntries" || e.key === "chartOfAccounts") {
+                filterAndCalculate();
+            }
+        };
+        window.addEventListener("storage", onStorage);
+        return () => window.removeEventListener("storage", onStorage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        filterAndCalculate();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fromDate, toDate]);
 
-    // Run once on mount
-    useEffect(() => { filterAndCalculate(); }, []);
-
-    // Combine all rows for PDF
-    const revenueRows = revenues.map(r => [r.description, r.amount.toFixed(2)]);
-    const expenseRows = expenses.map(e => [e.description, e.amount.toFixed(2)]);
+    const revenueRows = useMemo(() => revenues.map((r) => [r.description, r.amount.toFixed(2)]), [revenues]);
+    const expenseRows = useMemo(() => expenses.map((e) => [e.description, e.amount.toFixed(2)]), [expenses]);
 
     return (
         <div className="min-h-screen p-8 bg-gray-50">
             <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Income Statement</h2>
 
-            {/* Use reusable date filter */}
             <DateRangeFilter
                 fromDate={fromDate}
                 toDate={toDate}
@@ -146,21 +144,19 @@ export default function IncomeStatement() {
                 }}
             />
 
-            {/* Download PDF button */}
             <ReportPDFDownloader
                 companyName="NextFin"
                 reportTitle="Income Statement"
                 reportPeriod={getPeriodLine()}
                 columns={["Account", "Amount (৳)"]}
-                // merging revenue, total, then expense, total (with empty row in between)
                 data={[
                     ...revenueRows,
                     ["Total Revenue", totalRevenue.toFixed(2)],
-                    ["", ""], // Empty row between
+                    ["", ""],
                     ...expenseRows,
-                    ["Total Expense", totalExpense.toFixed(2)]
+                    ["Total Expense", totalExpense.toFixed(2)],
                 ]}
-                totals={[]} // not using foot for now
+                totals={[]}
                 netIncome={netIncome}
                 filename="IncomeStatement.pdf"
             />
@@ -173,13 +169,14 @@ export default function IncomeStatement() {
                             <span className="block font-medium text-blue-600">Income Statement</span>
                         </li>
                         <li>
-                            <a href="/reports/balance-sheet" className="text-gray-600 hover:text-blue-600">Balance Sheet</a>
+                            <a href="/reports/balance-sheet" className="text-gray-600 hover:text-blue-600">
+                                Balance Sheet
+                            </a>
                         </li>
                     </ul>
                 </div>
 
                 <div className="md:col-span-3 space-y-6">
-                    {/* Revenue */}
                     <div className="bg-white p-4 rounded shadow">
                         <h3 className="text-xl font-semibold mb-3">Revenue</h3>
                         <table className="w-full text-left border border-gray-200">
@@ -196,7 +193,6 @@ export default function IncomeStatement() {
                                         <td className="p-2 text-right text-gray-700">{item.amount.toFixed(2)}</td>
                                     </tr>
                                 ))}
-                                {/* Total Revenue Row */}
                                 <tr className="bg-gray-100 font-semibold">
                                     <td className="p-2 border-t text-right">Total Revenue</td>
                                     <td className="p-2 border-t text-right">{totalRevenue.toFixed(2)}</td>
@@ -205,7 +201,6 @@ export default function IncomeStatement() {
                         </table>
                     </div>
 
-                    {/* Expenses */}
                     <div className="bg-white p-4 rounded shadow">
                         <h3 className="text-xl font-semibold mb-3">Expenses</h3>
                         <table className="w-full text-left border border-gray-200">
@@ -222,7 +217,6 @@ export default function IncomeStatement() {
                                         <td className="p-2 text-right text-gray-700">{item.amount.toFixed(2)}</td>
                                     </tr>
                                 ))}
-                                {/* Total Expense Row */}
                                 <tr className="bg-gray-100 font-semibold">
                                     <td className="p-2 border-t text-right">Total Expense</td>
                                     <td className="p-2 border-t text-right">{totalExpense.toFixed(2)}</td>
