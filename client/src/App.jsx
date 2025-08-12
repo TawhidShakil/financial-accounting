@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import NavBar from './components/NavBar';
 import Login from './pages/auth/Login';
@@ -11,12 +12,18 @@ import BalanceSheet from './pages/report/BalanceSheet';
 import IncomeStatement from './pages/report/IncomeStatement';
 import Reports from './pages/Reports';
 import TrialBalance from './pages/TrialBalance';
+import { seedDemoData } from './utils/seedDemoData';
+
 
 function App() {
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem("loggedInUser"));
   const isLoggedIn = !!user;
   const isPublicPage = ["/", "/login", "/register"].includes(location.pathname);
+
+  useEffect(() => {
+    seedDemoData();
+  }, []);
 
   return (
     <div className="bg-gray-200 text-gray-900 min-h-screen flex flex-col">
