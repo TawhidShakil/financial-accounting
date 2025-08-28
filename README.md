@@ -1,4 +1,3 @@
-```markdown
 # 📊 Accounting Management System
 
 A comprehensive web-based accounting application built with React that provides essential bookkeeping functionality for small to medium businesses. Features double-entry bookkeeping, hierarchical account management, and real-time financial reporting.
