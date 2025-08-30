@@ -1,0 +1,20 @@
+{
+  "name": "financial-accounting",
+  "version": "1.0.0",
+  "description": "A comprehensive web-based accounting application built with React that provides essential bookkeeping functionality for small to medium businesses. Features double-entry bookkeeping, hierarchical account management, and real-time financial reporting.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TawhidShakil/financial-accounting.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TawhidShakil/financial-accounting/issues"
+  },
+  "homepage": "https://github.com/TawhidShakil/financial-accounting#readme",
+  "keywords": []
+}

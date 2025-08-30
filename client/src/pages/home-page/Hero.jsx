@@ -84,8 +84,8 @@ const Hero = () => {
                         ))}
                     </div>
 
-                    <Link to="/login" className="hidden lg:inline-block bg-indigo-600 dark:bg-indigo-500 text-white font-semibold px-5 py-2 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors shadow-sm">
-                        Login
+                    <Link to="/Signin" className="hidden lg:inline-block bg-indigo-600 dark:bg-indigo-500 text-white font-semibold px-5 py-2 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors shadow-sm">
+                        Signin
                     </Link>
 
                     <div className="lg:hidden">
