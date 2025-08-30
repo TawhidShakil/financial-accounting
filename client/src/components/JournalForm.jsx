@@ -216,8 +216,11 @@ const AccountSelect = forwardRef(
     const handleAccountSelect = (account) => {
       setSearchTerm(account);
       onChange(account);
+
+      // Opening balance এখন 0 (server-সোর্স না থাকায়)
       const openingBalance = calculateOpeningBalance(account, journalDate);
       parentHandleChange(index, "openingBalance", openingBalance);
+
       setShowDropdown(false);
       setShowCategoryHierarchy(false);
       setCurrentCategory(null);
@@ -234,7 +237,7 @@ const AccountSelect = forwardRef(
       setLastEnterTime(0);
     };
 
-    // save new account + persist COA
+    // save new account (🔔 localStorage persist বাদ)
     const saveNewAccount = (nameOverride, categoryArg, subcategoryArg) => {
       try {
         const raw = (nameOverride ?? newAccountName ?? "").trim();
@@ -267,14 +270,7 @@ const AccountSelect = forwardRef(
         const updatedAccounts = [...new Set([...accountOptions, raw])];
         setAccountOptions(updatedAccounts);
 
-        // persist chart-of-accounts
-        const key = "chartOfAccounts";
-        const coa = JSON.parse(localStorage.getItem(key) || "{}");
-        coa[raw] = {
-          category: normalizeCat(category),
-          subcategory: subcategory || null,
-        };
-        localStorage.setItem(key, JSON.stringify(coa));
+        // ❌ chartOfAccounts localStorage persist ছিল — এখন সরানো হয়েছে
 
         handleAccountSelect(raw);
 
@@ -367,7 +363,7 @@ const AccountSelect = forwardRef(
       setLastEnterTime(0);
     };
 
-    // Renderers
+    // Renderers (unchanged UI)
     const renderExistingAccounts = () => (
       <>
         {filteredAccountOptions.length > 0 ? (
@@ -375,9 +371,8 @@ const AccountSelect = forwardRef(
             <div
               key={account}
               onClick={() => handleAccountSelect(account)}
-              className={`p-2 cursor-pointer flex justify-between items-center ${
-                selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
-              }`}
+              className={`p-2 cursor-pointer flex justify-between items-center ${selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
             >
               <span className="flex-grow">{account}</span>
               <button
@@ -426,9 +421,8 @@ const AccountSelect = forwardRef(
 
         <div
           onClick={() => handleOptionSelect("+ Add New Account")}
-          className={`p-2 cursor-pointer text-blue-600 font-semibold border-t border-2 border-gray-200 ${
-            selectedIndex === filteredAccountOptions.length ? "bg-blue-100" : "hover:bg-gray-100"
-          }`}
+          className={`p-2 cursor-pointer text-blue-600 font-semibold border-t border-2 border-gray-200 ${selectedIndex === filteredAccountOptions.length ? "bg-blue-100" : "hover:bg-gray-100"
+            }`}
         >
           {searchTerm.trim()
             ? accountExists(searchTerm)
@@ -458,9 +452,8 @@ const AccountSelect = forwardRef(
             <div
               key={category}
               onClick={() => handleOptionSelect(category)}
-              className={`p-2 cursor-pointer flex justify-between items-center ${
-                selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
-              }`}
+              className={`p-2 cursor-pointer flex justify-between items-center ${selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
             >
               <span>{category}</span>
               <span className="text-gray-500">→</span>
@@ -493,9 +486,8 @@ const AccountSelect = forwardRef(
                 <div
                   key={account}
                   onClick={() => handleAccountSelect(account)}
-                  className={`p-2 cursor-pointer flex justify-between items-center ${
-                    selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
-                  }`}
+                  className={`p-2 cursor-pointer flex justify-between items-center ${selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                    }`}
                 >
                   <span className="flex-grow">{account}</span>
                   <button
@@ -515,9 +507,8 @@ const AccountSelect = forwardRef(
               ))}
               <div
                 onClick={() => handleOptionSelect("+ Add New Account")}
-                className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
-                  selectedIndex === accountHierarchy[currentCategory].length ? "bg-blue-100" : "hover:bg-gray-100"
-                }`}
+                className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${selectedIndex === accountHierarchy[currentCategory].length ? "bg-blue-100" : "hover:bg-gray-100"
+                  }`}
               >
                 {searchTerm.trim()
                   ? accountExists(searchTerm)
@@ -531,9 +522,8 @@ const AccountSelect = forwardRef(
               <div
                 key={subcategory}
                 onClick={() => handleOptionSelect(subcategory)}
-                className={`p-2 cursor-pointer flex justify-between items-center ${
-                  selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
-                }`}
+                className={`p-2 cursor-pointer flex justify-between items-center ${selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                  }`}
               >
                 <span>{subcategory}</span>
                 <span className="text-gray-500">→</span>
@@ -564,9 +554,8 @@ const AccountSelect = forwardRef(
             <div
               key={account}
               onClick={() => handleAccountSelect(account)}
-              className={`p-2 cursor-pointer flex justify-between items-center ${
-                selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
-              }`}
+              className={`p-2 cursor-pointer flex justify-between items-center ${selectedIndex === idx ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
             >
               <span className="flex-grow">{account}</span>
               <button
@@ -588,9 +577,8 @@ const AccountSelect = forwardRef(
           ))}
           <div
             onClick={() => handleOptionSelect("+ Add New Account")}
-            className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${
-              selectedIndex === accounts.length ? "bg-blue-100" : "hover:bg-gray-100"
-            }`}
+            className={`p-2 cursor-pointer text-blue-600 font-semibold w-full text-left ${selectedIndex === accounts.length ? "bg-blue-100" : "hover:bg-gray-100"
+              }`}
           >
             {searchTerm.trim()
               ? accountExists(searchTerm)
@@ -784,9 +772,8 @@ const TypeSelect = forwardRef(({ value, onChange, index, amountInputRefs }, ref)
         }}
         tabIndex={0}
         onKeyDown={handleDropdownKeyDown}
-        className={`w-full p-2 border rounded-md cursor-pointer flex justify-between items-center focus:ring-2 focus:ring-blue-500 focus:outline-none ${
-          value === "Debit" ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50"
-        }`}
+        className={`w-full p-2 border rounded-md cursor-pointer flex justify-between items-center focus:ring-2 focus:ring-blue-500 focus:outline-none ${value === "Debit" ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50"
+          }`}
       >
         <span>{value}</span>
         <ChevronDownIcon className={`h-4 w-4 text-gray-500 transition-transform ${showDropdown ? "rotate-180" : ""}`} />
@@ -839,39 +826,8 @@ const JournalForm = ({
     dateInputRef.current?.focus();
   }, []);
 
-  const calculateOpeningBalance = (accountName, date) => {
-    if (!accountName || !date) return 0;
-    const savedLedgerEntries = localStorage.getItem("ledgerEntries") || "[]";
-    const savedJournalEntries = localStorage.getItem("journalEntries") || "[]";
-    const allLedgerEntries = JSON.parse(savedLedgerEntries);
-    const journalEntries = JSON.parse(savedJournalEntries);
-
-    journalEntries.forEach((journalEntry) => {
-      if (journalEntry.entries && Array.isArray(journalEntry.entries)) {
-        journalEntry.entries.forEach((item) => {
-          allLedgerEntries.push({
-            date: journalEntry.date,
-            account: item.account,
-            debit: item.type === "Debit" ? Number(item.amount) : 0,
-            credit: item.type === "Credit" ? Number(item.amount) : 0,
-            type: "Journal",
-            reference: `Journal-${journalEntry.date}-${item.account}`,
-          });
-        });
-      }
-    });
-
-    const entriesBeforeDate = allLedgerEntries.filter(
-      (entry) => entry.account === accountName && new Date(entry.date) < new Date(date),
-    );
-    if (entriesBeforeDate.length === 0) return 0;
-
-    entriesBeforeDate.sort((a, b) => new Date(a.date) - new Date(b.date));
-    const totalDebits = entriesBeforeDate.reduce((sum, entry) => sum + (Number(entry.debit) || 0), 0);
-    const totalCredits = entriesBeforeDate.reduce((sum, entry) => sum + (Number(entry.credit) || 0), 0);
-
-    return totalDebits - totalCredits;
-  };
+  
+  const calculateOpeningBalance = () => 0;
 
   useEffect(() => {
     accountSelectRefs.current = accountSelectRefs.current.slice(0, entries.length);
@@ -886,7 +842,7 @@ const JournalForm = ({
       setDescription(editData.description || "");
       const entriesWithBalance = editData.entries.map((entry) => ({
         ...entry,
-        openingBalance: calculateOpeningBalance(entry.account, editData.date),
+        openingBalance: 0, 
       }));
       setEntries(entriesWithBalance);
     } else {
@@ -903,7 +859,7 @@ const JournalForm = ({
     if (journalDate) {
       const updatedEntries = entries.map((entry) => ({
         ...entry,
-        openingBalance: entry.account ? calculateOpeningBalance(entry.account, journalDate) : 0,
+        openingBalance: entry.account ? 0 : 0,
       }));
       setEntries(updatedEntries);
     }
@@ -924,12 +880,13 @@ const JournalForm = ({
           descriptionInputRef.current?.focus();
         }
       } else if (fieldType === "description") {
-        handleSubmit({ preventDefault: () => {} });
+        handleSubmit({ preventDefault: () => { } });
       }
     }
   };
 
-  const addRow = () => setEntries([...entries, { account: "", type: "Debit", amount: "", openingBalance: 0 }]);
+  const addRow = () =>
+    setEntries([...entries, { account: "", type: "Debit", amount: "", openingBalance: 0 }]);
 
   const removeRow = (index) => {
     if (entries.length <= 2) {
@@ -945,9 +902,25 @@ const JournalForm = ({
     const updated = [...entries];
     updated[index][field] = value;
     if (field === "account") {
-      updated[index]["openingBalance"] = calculateOpeningBalance(value, journalDate);
+      updated[index]["openingBalance"] = 0;
     }
     setEntries(updated);
+  };
+
+  // accountHierarchy থেকে category ধরার জন্য (localStorage ছাড়া)
+  const findCategoryFromHierarchy = (name) => {
+    if (!name) return "";
+    for (const cat of Object.keys(accountHierarchy)) {
+      const v = accountHierarchy[cat];
+      if (Array.isArray(v)) {
+        if (v.includes(name)) return cat;
+      } else {
+        for (const sub of Object.keys(v)) {
+          if (v[sub].includes(name)) return cat;
+        }
+      }
+    }
+    return "";
   };
 
   const handleSubmit = (e) => {
@@ -996,15 +969,14 @@ const JournalForm = ({
       return;
     }
 
-    const coa = JSON.parse(localStorage.getItem("chartOfAccounts") || "{}");
-
+    // ❌ localStorage('chartOfAccounts') বাদ — category হায়ারার্কি থেকে আন্দাজ
     const newEntry = {
       date: journalDate,
       description: description,
       entries: entries.map((entry) => ({
         ...entry,
         amount: Number.parseFloat(entry.amount),
-        category: normalizeCat(coa[entry.account]?.category || entry.category || ""),
+        category: normalizeCat(findCategoryFromHierarchy(entry.account) || entry.category || ""),
         source: "journal",
       })),
     };
@@ -1074,13 +1046,7 @@ const JournalForm = ({
 
           <div className="col-span-2">
             <div className="w-full p-2 border border-gray-200 rounded-md bg-gray-50 text-center font-medium text-sm">
-              {entry.openingBalance === 0 ? (
-                <span className="text-gray-500">৳ 0.00</span>
-              ) : entry.openingBalance > 0 ? (
-                <span className="text-green-600">৳ {Math.abs(entry.openingBalance).toFixed(2)} Dr</span>
-              ) : (
-                <span className="text-red-600">৳ {Math.abs(entry.openingBalance).toFixed(2)} Cr</span>
-              )}
+              <span className="text-gray-500">৳ 0.00</span>
             </div>
           </div>
 
@@ -1153,7 +1119,7 @@ const JournalForm = ({
               setDescription(editData.description || "");
               const entriesWithBalance = editData.entries.map((entry) => ({
                 ...entry,
-                openingBalance: calculateOpeningBalance(entry.account, editData.date),
+                openingBalance: 0,
               }));
               setEntries(entriesWithBalance);
             } else {
